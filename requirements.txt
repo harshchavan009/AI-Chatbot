@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+openai>=1.0.0
+python-dotenv
+pydantic-settings
+python-telegram-bot>=20.0
+jinja2
+python-multipart
+aiohttp
+pytest
+httpx
