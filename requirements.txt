@@ -9,3 +9,4 @@ python-multipart
 aiohttp
 pytest
 httpx
+google-generativeai

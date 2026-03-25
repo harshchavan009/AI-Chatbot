@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     APP_NAME: str = os.getenv("APP_NAME", "AI Chatbot")
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() == "true"
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-super-secret-key-12345")
