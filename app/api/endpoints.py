@@ -47,9 +47,14 @@ class ChatService:
         if self.openai_client and not settings.MOCK_MODE:
             try:
                 messages = self.sessions[session_id][-20:]
-                messages.insert(0, {"role": "system", "content": f"You are a helpful assistant. You MUST respond in {language}."})
+                system_instruction = (
+                    f"You are a highly intelligent AI Assistant. You MUST respond in {language}. "
+                    "Provide detailed, accurate, and reasoned answers. For complex questions, "
+                    "think step-by-step to ensure correctness."
+                )
+                messages.insert(0, {"role": "system", "content": system_instruction})
                 response = await self.openai_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4o-mini",
                     messages=messages,
                     temperature=0.7
                 )
@@ -63,16 +68,26 @@ class ChatService:
         # 2. Try Gemini if available (even in Mock Mode if OpenAI is missing)
         if self.gemini_enabled:
             try:
-                model = genai.GenerativeModel('gemini-pro')
+                # Upgraded to gemini-1.5-flash for better reasoning and speed
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
                 # Convert history to Gemini format
                 history = []
-                for msg in self.sessions[session_id][:-1]: # All but last
+                for msg in self.sessions[session_id][:-1]:
                     role = "user" if msg["role"] == "user" else "model"
                     history.append({"role": role, "parts": [msg["content"]]})
                 
                 chat = model.start_chat(history=history)
-                # Ensure language instruction is present for Gemini too
-                gemini_input = f"User is speaking {language}. Respond in {language}. User message: {user_input}"
+                
+                # Enhanced reasoning prompt for Gemini
+                gemini_input = (
+                    f"Current Language: {language}. "
+                    "Instruction: You are a highly intelligent AI. Provide a detailed, "
+                    "step-by-step reasoned answer if the question is complex. "
+                    f"Responda en {language}. "
+                    f"User message: {user_input}"
+                )
+                
                 response = await chat.send_message_async(gemini_input)
                 assistant_message = response.text
                 self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
@@ -81,10 +96,27 @@ class ChatService:
                 logger.error(f"Gemini error: {str(e)}")
                 # Fall through to Mock
 
-        # 3. Fallback for demonstration (Mock Mode / Smart Knowledge)
-        logger.info(f"Using smart knowledge search for: {user_input[:50]}... in {language}")
+        # 3. Fallback / Enhanced Search for Complex Questions
+        logger.info(f"Using enhanced knowledge search for: {user_input[:50]}... in {language}")
         
-        # (Smart Answer logic remains the same below...)
+        # Determine if we should perform a web search for better context
+        search_triggers = ["who", "what", "where", "when", "how", "current", "news", "latest", "price", "vs"]
+        should_search = any(trigger in user_input.lower() for trigger in search_triggers)
+        
+        search_context = ""
+        if should_search:
+            try:
+                url = f"https://api.duckduckgo.com/?q={user_input}&format=json&no_html=1"
+                async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
+                    async with session.get(url, timeout=5) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if data.get("AbstractText"):
+                                search_context = data["AbstractText"]
+            except Exception as e:
+                logger.error(f"Search error: {str(e)}")
+
+        # Check direct smart answers first
         prompt_lower = user_input.lower()
         smart_answers = {
             "tech stack": "My tech stack includes Python, FastAPI, Uvicorn, OpenAI API, and a premium Vanilla HTML/CSS/JS frontend. It's designed for scalability and speed.",
@@ -115,24 +147,16 @@ class ChatService:
                 self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
                 return assistant_message
 
-        # Try DuckDuckGo Abstract API
-        try:
-            url = f"https://api.duckduckgo.com/?q={user_input}&format=json&no_html=1"
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
-                async with session.get(url, timeout=5) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if data.get("AbstractText"):
-                            assistant_message = data["AbstractText"]
-                            if language != "English":
-                                assistant_message = f"(Mock Response in English, Language selected: {language})\n\n" + assistant_message
-                            self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
-                            return assistant_message
-        except Exception as e:
-            logger.error(f"Search fallback error: {str(e)}")
+        # If we got search context, use it to provide a better mock response
+        if search_context:
+            assistant_message = f"Based on my research: {search_context}\n\n(This is an enhanced search result for your complex question.)"
+            if language != "English":
+                assistant_message = f"(Language selected: {language})\n\n" + assistant_message
+            self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
+            return assistant_message
 
         # Conversational fallbacks
-        input_preview = user_input[:20]
+        input_preview = str(user_input)[:20]
         conversational_responses = [
             f"That's an interesting question about '{input_preview}'. In Demo Mode, I can tell you that this project is built with FastAPI and designed for high performance!",
             f"I'm currently operating in Demo Mode, but I'd love to discuss '{input_preview}' once you've added an AI API key (OpenAI or Gemini) to my configuration.",
