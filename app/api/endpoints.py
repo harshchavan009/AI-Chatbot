@@ -22,7 +22,7 @@ class ChatService:
         # Gemini Setup
         self.gemini_key = settings.GEMINI_API_KEY
         self.gemini_enabled = False
-        if self.gemini_key and "..." not in self.gemini_key and "your_" not in self.gemini_key:
+        if self.gemini_key: # Allow any key, let the API report errors
             try:
                 genai.configure(api_key=self.gemini_key)
                 self.gemini_enabled = True
@@ -68,16 +68,11 @@ class ChatService:
         # 2. Try Gemini if available (even in Mock Mode if OpenAI is missing)
         if self.gemini_enabled:
             try:
-                # Upgraded to gemini-1.5-flash for better reasoning and speed
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                
                 # Convert history to Gemini format
                 history = []
                 for msg in self.sessions[session_id][:-1]:
                     role = "user" if msg["role"] == "user" else "model"
                     history.append({"role": role, "parts": [msg["content"]]})
-                
-                chat = model.start_chat(history=history)
                 
                 # Enhanced reasoning prompt for Gemini
                 gemini_input = (
@@ -87,14 +82,38 @@ class ChatService:
                     f"Responda en {language}. "
                     f"User message: {user_input}"
                 )
+
+                # Try latest model names found in discovery
+                model_names = ['gemini-2.0-flash', 'gemini-pro-latest', 'gemini-flash-latest']
+                response = None
+                last_error = ""
                 
-                response = await chat.send_message_async(gemini_input)
-                assistant_message = response.text
-                self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
-                return assistant_message
+                for m_name in model_names:
+                    try:
+                        logger.info(f"Attempting Gemini with model: {m_name}")
+                        # Ensure we use 'models/' prefix if needed, though usually just the name works
+                        model = genai.GenerativeModel(m_name)
+                        chat = model.start_chat(history=history)
+                        response = await chat.send_message_async(gemini_input)
+                        if response:
+                            break
+                    except Exception as ge:
+                        last_error = str(ge)
+                        logger.warning(f"Gemini {m_name} failed: {last_error}")
+                        continue
+                
+                if response:
+                    assistant_message = response.text
+                    self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
+                    return assistant_message
+                else:
+                    raise Exception(f"All Gemini models failed. Last error: {last_error}")
             except Exception as e:
                 logger.error(f"Gemini error: {str(e)}")
-                # Fall through to Mock
+                # If Gemini fails due to an invalid key or other issue, inform the user directly
+                error_msg = f"Gemini Error: I tried to answer your question, but encountered an issue. (Error: {str(e)[:150]}). Please check your GEMINI_API_KEY."
+                self.sessions[session_id].append({"role": "assistant", "content": error_msg})
+                return error_msg
 
         # 3. Fallback / Enhanced Search for Complex Questions
         logger.info(f"Using enhanced knowledge search for: {user_input[:50]}... in {language}")
@@ -141,11 +160,13 @@ class ChatService:
 
         for key, val in smart_answers.items():
             if key in prompt_lower:
-                assistant_message = val
-                if language != "English":
-                    assistant_message = f"(Mock Response in English, Language selected: {language})\n\n" + assistant_message
-                self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
-                return assistant_message
+                # Only return smart answer if it's a long enough match or specific FAQ
+                if len(key) > 5 or key == "dsa" or key == "sql" or key == "git":
+                    assistant_message = val
+                    if language != "English":
+                        assistant_message = f"(Mock Response in English, Language selected: {language})\n\n" + assistant_message
+                    self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
+                    return assistant_message
 
         # If we got search context, use it to provide a better mock response
         if search_context:
@@ -157,11 +178,15 @@ class ChatService:
 
         # Conversational fallbacks
         input_preview = str(user_input)[:20]
+        demo_reason = "No valid GEMINI_API_KEY found in .env."
+        if settings.MOCK_MODE:
+            demo_reason = "MOCK_MODE is enabled in .env."
+            
         conversational_responses = [
-            f"That's an interesting question about '{input_preview}'. In Demo Mode, I can tell you that this project is built with FastAPI and designed for high performance!",
-            f"I'm currently operating in Demo Mode, but I'd love to discuss '{input_preview}' once you've added an AI API key (OpenAI or Gemini) to my configuration.",
-            f"As an AI Assistant in Demo Mode, I have limited knowledge on '{input_preview}'. However, I'm fully capable of complex reasoning with a valid API key!",
-            f"I see you're asking about '{input_preview}'. While I'm in Demo Mode, I'm focusing on showcasing my premium UI and backend architecture."
+            f"I see you're asking about '{input_preview}'. I'm currently in **Demo Mode** because: {demo_reason}",
+            f"That's a complex question about '{input_preview}'. To give you a real AI answer, please add your Gemini API Key from https://aistudio.google.com/ to the .env file.",
+            f"I'm focusing on showcasing my premium UI right now. Once you've added a valid Gemini API key, I'll be able to answer any complex question you have!",
+            f"To get unlimited and smart replies for '{input_preview}', please ensure your GEMINI_API_KEY is correctly set and MOCK_MODE=false in your .env file."
         ]
         import random
         assistant_message = random.choice(conversational_responses)
