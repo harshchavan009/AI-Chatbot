@@ -38,11 +38,23 @@ class OpenAIService:
             # For simplicity, we'll keep the mock answers in English but inform the user.
             prompt_lower = user_input.lower()
             smart_answers = {
-                "tech stack": "My tech stack includes Python, FastAPI, Uvicorn, OpenAI API, and a premium Vanilla HTML/CSS/JS frontend.",
-                "features": "I feature JWT authentication, session-based chat history, a logging system, and Telegram Bot integration.",
-                "deploy": "You can deploy me easily to Render, Railway, or Heroku using the provided Procfile and requirements.txt.",
-                "who are you": "I am a production-ready AI Chatbot designed to showcase professional backend and frontend development skills.",
-                "fastapi": "FastAPI is a modern, fast (high-performance) web framework for building APIs with Python 3.7+ based on standard Python type hints.",
+                "tech stack": "My tech stack includes Python, FastAPI, Uvicorn, OpenAI API, and a premium Vanilla HTML/CSS/JS frontend. It's designed for scalability and speed.",
+                "features": "I feature JWT authentication, session-based chat history, a logging system, Telegram Bot integration, and a multi-language support system.",
+                "deploy": "You can deploy me easily to Render, Railway, or Heroku using the provided Procfile and requirements.txt. I'm ready for production!",
+                "who are you": "I am a production-ready AI Chatbot designed to showcase professional backend and frontend development skills. I can assist with coding, tech questions, and more.",
+                "fastapi": "FastAPI is a modern, fast (high-performance) web framework for building APIs with Python 3.7+ based on standard Python type hints. It's one of the fastest Python frameworks available.",
+                "python": "Python is a high-level, interpreted, general-purpose programming language. Its design philosophy emphasizes code readability and simplicity.",
+                "django": "Django is a high-level Python web framework that encourages rapid development and clean, pragmatic design. It's 'batteries-included' and very secure.",
+                "dsa": "Data Structures and Algorithms (DSA) are the building blocks of efficient software development. Understanding them is key to writing optimized code.",
+                "java": "Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible. 'Write once, run anywhere'!",
+                "javascript": "JavaScript is a versatile, high-level, often just-in-time compiled language that is one of the core technologies of the World Wide Web.",
+                "html": "HTML (HyperText Markup Language) is the standard markup language for documents designed to be displayed in a web browser.",
+                "css": "CSS (Cascading Style Sheets) is a style sheet language used for describing the presentation of a document written in a markup language like HTML.",
+                "sql": "SQL (Structured Query Language) is a standard language for managing and manipulating relational databases.",
+                "git": "Git is a distributed version-control system for tracking changes in source code during software development.",
+                "react": "React is a free and open-source front-end JavaScript library for building user interfaces based on components.",
+                "hello": "Hello! I am your AI Assistant. How can I help you today?",
+                "hi": "Hi there! How can I assist you today?",
                 "correct": "To make me answer every question correctly, please add a valid OpenAI API key in the .env file and set MOCK_MODE to false!"
             }
 
@@ -57,20 +69,29 @@ class OpenAIService:
             # 2. Try DuckDuckGo Abstract API (Free, No Key)
             try:
                 url = f"https://api.duckduckgo.com/?q={user_input}&format=json&no_html=1"
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url) as resp:
-                        data = await resp.json()
-                        if data.get("AbstractText"):
-                            assistant_message = data["AbstractText"]
-                            if language != "English":
-                                assistant_message = f"(Mock Response in English, Language selected: {language})\n\n" + assistant_message
-                            self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
-                            return assistant_message
+                # Added SSL verification bypass for demo mode if needed, and better error handling
+                async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
+                    async with session.get(url, timeout=5) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if data.get("AbstractText"):
+                                assistant_message = data["AbstractText"]
+                                if language != "English":
+                                    assistant_message = f"(Mock Response in English, Language selected: {language})\n\n" + assistant_message
+                                self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
+                                return assistant_message
             except Exception as e:
                 logger.error(f"Search fallback error: {str(e)}")
 
-            # 3. Default fallback
-            assistant_message = f"I'm currently in **Demo Mode**, so I'm using my built-in knowledge base for '{user_input[:20]}...'. For full AI capabilities, please add your OpenAI key to the .env file!"
+            # 3. Default conversational fallbacks
+            conversational_responses = [
+                f"That's an interesting question about '{user_input[:30]}'. In Demo Mode, I can tell you that this project is built with FastAPI and designed for high performance!",
+                f"I'm currently operating in Demo Mode, but I'd love to discuss '{user_input[:20]}' once you've added an OpenAI API key to my configuration.",
+                f"As an AI Assistant in Demo Mode, I have limited knowledge on '{user_input[:20]}'. However, I'm fully capable of complex reasoning with a valid API key!",
+                f"I see you're asking about '{user_input[:20]}'. While I'm in Demo Mode, I'm focusing on showcasing my premium UI and backend architecture."
+            ]
+            import random
+            assistant_message = random.choice(conversational_responses)
             if language != "English":
                 assistant_message = f"(Language selected: {language})\n\n" + assistant_message
             self.sessions[session_id].append({"role": "assistant", "content": assistant_message})
@@ -78,7 +99,7 @@ class OpenAIService:
 
         try:
             # For real OpenAI calls, we can prepend a system message or just the instruction
-            messages = self.sessions[session_id][-10:]
+            messages = self.sessions[session_id][-20:]
             
             # Ensure the AI knows the language preference
             messages.insert(0, {"role": "system", "content": f"You are a helpful assistant. You MUST respond in {language}."})
