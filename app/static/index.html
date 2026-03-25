@@ -8,35 +8,44 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/4712/4712035.png">
     <style>
-        body {
-            background: linear-gradient(-45deg, #0f172a, #1e293b, #0f172a, #334155);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
-        }
-        @keyframes gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        #vanta-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
         }
     </style>
+    <!-- Three.js and Vanta.js for 3D Background -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
 </head>
 <body>
+    <div id="vanta-canvas"></div>
     <div class="chat-container">
         <header>
             <div class="header-info">
                 <div class="status-indicator"></div>
                 <h1>AI Assistant</h1>
                 <div class="controls">
-                    <select id="language-selector" class="lang-select">
-                        <option value="English">🇺🇸 English</option>
-                        <option value="Spanish">🇪🇸 Spanish</option>
-                        <option value="French">🇫🇷 French</option>
-                        <option value="German">🇩🇪 German</option>
-                        <option value="Hindi">🇮🇳 Hindi</option>
-                        <option value="Japanese">🇯🇵 Japanese</option>
-                        <option value="Chinese">🇨🇳 Chinese</option>
-                        <option value="Arabic">🇸🇦 Arabic</option>
-                    </select>
+                    <div class="custom-dropdown" id="language-dropdown">
+                        <div class="dropdown-selected">
+                            <span id="selected-lang-text">🇺🇸 English</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="dropdown-options">
+                            <div class="option" data-value="English">🇺🇸 English</div>
+                            <div class="option" data-value="Spanish">🇪🇸 Spanish</div>
+                            <div class="option" data-value="French">🇫🇷 French</div>
+                            <div class="option" data-value="German">🇩🇪 German</div>
+                            <div class="option" data-value="Hindi">🇮🇳 Hindi</div>
+                            <div class="option" data-value="Japanese">🇯🇵 Japanese</div>
+                            <div class="option" data-value="Chinese">🇨🇳 Chinese</div>
+                            <div class="option" data-value="Arabic">🇸🇦 Arabic</div>
+                        </div>
+                    </div>
                     <button id="logout-btn" class="logout-link" title="Logout">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -70,5 +79,25 @@
         </footer>
     </div>
     <script src="script.js"></script>
+    <script>
+        // Initialize 3D Net Background
+        window.addEventListener('DOMContentLoaded', () => {
+            VANTA.NET({
+                el: "#vanta-canvas",
+                mouseControls: true,
+                touchControls: true,
+                gyroControls: false,
+                minHeight: 200.00,
+                minWidth: 200.00,
+                scale: 1.00,
+                scaleMobile: 1.00,
+                color: 0x6366f1,
+                backgroundColor: 0x0f172a,
+                points: 12.00,
+                maxDistance: 22.00,
+                spacing: 16.00
+            })
+        });
+    </script>
 </body>
 </html>

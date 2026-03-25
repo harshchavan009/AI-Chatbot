@@ -1,24 +1,25 @@
 :root {
-    --primary-color: #6366f1;
-    --primary-hover: #4f46e5;
-    --bg-color: #0f172a;
-    --card-bg: #1e293b;
+    --primary-bg: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --accent-color: #6366f1;
+    --accent-glow: rgba(99, 102, 241, 0.4);
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
-    --assistant-bubble: #334155;
+    --border-color: rgba(148, 163, 184, 0.2);
+    --assistant-bubble: rgba(51, 65, 85, 0.5);
     --user-bubble: #6366f1;
-    --border-color: #334155;
+    --glass-blur: blur(12px);
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'Inter', -apple-system, sans-serif;
 }
 
 body {
-    font-family: 'Inter', sans-serif;
-    background-color: var(--bg-color);
+    background-color: var(--primary-bg);
     color: var(--text-primary);
     height: 100vh;
     display: flex;
@@ -29,90 +30,61 @@ body {
 
 .chat-container {
     width: 600px;
-    height: 80vh;
-    background-color: var(--card-bg);
+    height: 85vh;
+    background: var(--card-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
     border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 40px var(--accent-glow);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    border: 1px solid var(--border-color);
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.3s ease;
 }
 
 header {
     padding: 24px;
+    background: rgba(15, 23, 42, 0.4);
     border-bottom: 1px solid var(--border-color);
-    text-align: center;
 }
 
 .header-info {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 4px;
-    width: 100%;
-}
-
-.controls {
-    display: flex;
     align-items: center;
-    gap: 12px;
-    margin-left: auto;
 }
 
-.lang-select {
-    background-color: var(--assistant-bubble);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    outline: none;
-    cursor: pointer;
-    transition: border-color 0.2s;
-}
-
-.lang-select:focus {
-    border-color: var(--primary-color);
+h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff, var(--accent-color));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .status-indicator {
     width: 10px;
     height: 10px;
-    background-color: #10b981;
+    background: #10b981;
     border-radius: 50%;
+    margin-right: 12px;
     box-shadow: 0 0 10px #10b981;
 }
 
-header h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-}
-
-.logout-link {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 6px;
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s, background-color 0.2s;
-}
-
-.logout-link:hover {
-    color: #ef4444;
-    background-color: rgba(239, 68, 68, 0.1);
-}
-
 header p {
-    font-size: 0.875rem;
     color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 4px;
+}
+
+.controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 #chat-window {
@@ -136,8 +108,9 @@ header p {
 }
 
 .message {
+    max-width: 85%;
     display: flex;
-    max-width: 80%;
+    flex-direction: column;
 }
 
 .message.assistant {
@@ -149,11 +122,11 @@ header p {
 }
 
 .bubble {
-    padding: 12px 16px;
+    padding: 12px 18px;
     border-radius: 16px;
     font-size: 0.95rem;
     line-height: 1.5;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    position: relative;
 }
 
 .assistant .bubble {
@@ -195,22 +168,96 @@ footer {
     border-color: var(--primary-color);
 }
 
-button {
-    background-color: var(--primary-color);
-    border: none;
-    border-radius: 12px;
-    width: 48px;
-    height: 48px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+#logout-btn, .lang-select {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid var(--border-color);
     color: white;
+    padding: 10px;
+    border-radius: 10px;
     cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
+    transition: all 0.3s ease;
 }
 
-button:hover {
-    background-color: var(--primary-hover);
+button[type="submit"] {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+button[type="submit"]:hover, .lang-select:hover, #logout-btn:hover {
+    background: var(--accent-color);
+    transform: translateY(-2px);
+}
+
+/* Custom Dropdown Styling */
+.custom-dropdown {
+    position: relative;
+    width: 160px;
+    z-index: 1000;
+}
+
+.dropdown-selected {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    backdrop-filter: var(--glass-blur);
+}
+
+.dropdown-selected:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: var(--primary-color);
+}
+
+.dropdown-options {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 100%;
+    background: #1e293b;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    display: none;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+    backdrop-filter: var(--glass-blur);
+}
+
+.dropdown-options.show {
+    display: block;
+    animation: fadeInDown 0.2s ease-out;
+}
+
+.option {
+    padding: 10px 16px;
+    cursor: pointer;
+    color: white;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.option:hover {
+    background: var(--accent-color);
+}
+
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 button:active {

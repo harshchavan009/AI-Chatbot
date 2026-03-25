@@ -2,7 +2,7 @@ import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from app.core.config import settings
-from app.api.endpoints import openai_service
+from app.api.endpoints import chat_service
 from app.core.logging import logger
 
 class TelegramBot:
@@ -31,8 +31,8 @@ class TelegramBot:
         
         logger.info(f"Telegram message received from {chat_id}: {user_input}")
         
-        # Get response from OpenAI service
-        response = await openai_service.get_response(chat_id, user_input)
+        # Get response from the unified ChatService
+        response = await chat_service.get_response(chat_id, user_input, language="English")
         
         await context.bot.send_message(
             chat_id=update.effective_chat.id,

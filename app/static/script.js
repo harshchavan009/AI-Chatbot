@@ -1,7 +1,10 @@
 const chatWindow = document.getElementById('chat-window');
 const chatForm = document.getElementById('chat-form');
 const userInput = document.getElementById('user-input');
-const languageSelector = document.getElementById('language-selector');
+const languageDropdown = document.getElementById('language-dropdown');
+const selectedLangText = document.getElementById('selected-lang-text');
+const dropdownOptions = languageDropdown.querySelector('.dropdown-options');
+let selectedLanguage = 'English';
 
 // Check for authentication token
 const token = localStorage.getItem('access_token');
@@ -19,6 +22,26 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 
 // Generate a random session ID for the browser session
 const sessionId = 'session_' + Math.random().toString(36).substr(2, 9);
+
+// Custom Dropdown Logic
+languageDropdown.querySelector('.dropdown-selected').addEventListener('click', () => {
+    dropdownOptions.classList.toggle('show');
+});
+
+document.addEventListener('click', (e) => {
+    if (!languageDropdown.contains(e.target)) {
+        dropdownOptions.classList.remove('show');
+    }
+});
+
+languageDropdown.querySelectorAll('.option').forEach(option => {
+    option.addEventListener('click', () => {
+        selectedLanguage = option.getAttribute('data-value');
+        selectedLangText.innerText = option.innerText;
+        dropdownOptions.classList.remove('show');
+        console.log(`Language changed to: ${selectedLanguage}`);
+    });
+});
 
 function addMessage(text, role) {
     const messageDiv = document.createElement('div');
@@ -76,7 +99,7 @@ chatForm.addEventListener('submit', async (e) => {
             body: JSON.stringify({
                 user_input: text,
                 session_id: sessionId,
-                language: languageSelector.value
+                language: selectedLanguage
             })
         });
 
