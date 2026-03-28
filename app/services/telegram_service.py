@@ -32,32 +32,49 @@ class TelegramBot:
         logger.info(f"Telegram message received from {chat_id}: {user_input}")
         
         # Get response from the unified ChatService
-        response = await chat_service.get_response(chat_id, user_input, language="English")
+        response, image_url = await chat_service.get_response(chat_id, user_input, language="English")
         
+        # Send text response
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=response
         )
 
+        # Send photo if available
+        if image_url:
+            try:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=image_url,
+                    caption=f"Related photo for: {user_input[:50]}..."
+                )
+            except Exception as e:
+                logger.error(f"Failed to send photo to Telegram: {str(e)}")
+
     def run(self):
         """
-        Run the bot.
-        Note: In a production environment, you might want to run this in a 
-        separate process or thread if integrated with FastAPI, OR use webhooks.
+        Run the bot with a token validity check.
         """
-        if not self.token:
-            logger.warning("TELEGRAM_BOT_TOKEN not provided. Telegram integration disabled.")
+        if not self.token or self.token == "...":
+            logger.warning("TELEGRAM_BOT_TOKEN is missing or placeholder. Telegram integration skipped.")
             return
 
-        self.application = ApplicationBuilder().token(self.token).build()
-        
-        start_handler = CommandHandler('start', self.start)
-        msg_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), self.handle_message)
-        
-        self.application.add_handler(start_handler)
-        self.application.add_handler(msg_handler)
-        
-        logger.info("Starting Telegram Bot...")
-        self.application.run_polling()
+        try:
+            self.application = ApplicationBuilder().token(self.token).build()
+            
+            start_handler = CommandHandler('start', self.start)
+            msg_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), self.handle_message)
+            
+            self.application.add_handler(start_handler)
+            self.application.add_handler(msg_handler)
+            
+            logger.info("Starting Telegram Bot...")
+            # Use a slightly more robust way to run that can be interrupted
+            self.application.run_polling(stop_signals=None) 
+        except Exception as e:
+            if "InvalidToken" in str(e) or "404" in str(e):
+                logger.warning(f"Telegram Bot failed to start: Invalid Token. Web UI will continue to work.")
+            else:
+                logger.error(f"Telegram Bot error: {str(e)}")
 
 telegram_bot = TelegramBot()

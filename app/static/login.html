@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Chatbot - Login</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Nova AI - Login</title>
+    <link rel="stylesheet" href="style.css?v=1.9">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         #vanta-canvas {
@@ -46,6 +46,17 @@
         .auth-header {
             text-align: center;
             margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        .auth-logo {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px var(--accent-glow));
+            margin-bottom: 8px;
         }
         .auth-header h2 {
             font-size: 1.5rem;
@@ -66,17 +77,44 @@
         }
         .form-group input {
             width: 100%;
-            background-color: #0f172a;
-            border: 1px solid var(--border-color);
+            background-color: #1a1f2e !important;
+            border: 1px solid #2a2f45;
             border-radius: 12px;
-            padding: 12px 16px;
+            padding: 12px 16px 12px 42px;
             color: var(--text-primary);
             font-family: inherit;
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .form-group input:focus {
-            border-color: var(--primary-color);
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+            background-color: #1e293b !important;
+        }
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            width: 18px;
+            height: 18px;
+            color: var(--text-secondary);
+            pointer-events: none;
+            transition: color 0.3s;
+        }
+        .form-group input:focus + .input-icon {
+            color: #6366f1;
+        }
+        /* Autocomplete fix */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-text-fill-color: var(--text-primary);
+            -webkit-box-shadow: 0 0 0px 1000px #1a1f2e inset;
+            transition: background-color 5000s ease-in-out 0s;
         }
         .auth-btn {
             width: 100%;
@@ -94,6 +132,38 @@
         .auth-btn:hover {
             background-color: var(--primary-hover);
         }
+        .toggle-password {
+            position: absolute;
+            right: 14px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.3s;
+            z-index: 2;
+        }
+        .toggle-password:hover {
+            color: var(--text-primary);
+        }
+        .form-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: -12px;
+            margin-bottom: 20px;
+        }
+        .forgot-link {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .forgot-link:hover {
+            color: var(--primary-color);
+        }
         .toggle-auth {
             text-align: center;
             margin-top: 20px;
@@ -105,12 +175,167 @@
             text-decoration: none;
             font-weight: 600;
         }
-        .error-message {
-            color: #ef4444;
-            font-size: 0.875rem;
-            margin-top: 10px;
+
+        /* Social Login Styling */
+        .separator {
+            display: flex;
+            align-items: center;
             text-align: center;
+            margin: 24px 0;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .separator::before,
+        .separator::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .separator span {
+            padding: 0 16px;
+        }
+        .social-login {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .social-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .social-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            border-color: var(--text-secondary);
+        }
+        .social-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+        .google-btn {
+            background: white !important;
+            color: #1f2937 !important;
+            border: none;
+        }
+        .google-btn:hover {
+            background: #f3f4f6 !important;
+        }
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px dashed rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 12px;
+            border-radius: 12px;
             display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            margin-top: 20px;
+        }
+
+        /* Loading Spinner Styling */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading .spinner {
+            display: block;
+        }
+        .loading .btn-text {
+            display: none;
+        }
+        .auth-btn:disabled, .social-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .social-btn.loading {
+            position: relative;
+            color: transparent !important;
+        }
+
+        .social-btn.loading::after {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin: -10px 0 0 -10px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        .shake {
+            animation: shake 0.2s ease-in-out 0s 2;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 480px) {
+            body {
+                align-items: flex-start;
+                padding-top: 40px;
+                overflow-y: auto;
+                height: auto;
+                min-height: 100vh;
+            }
+            .auth-container {
+                width: 90%;
+                padding: 30px 20px;
+                border-radius: 20px;
+                margin-bottom: 40px;
+            }
+            .auth-header h2 {
+                font-size: 1.25rem;
+            }
+            .auth-btn, .social-btn {
+                padding: 14px;
+                font-size: 0.95rem;
+            }
+            .form-group input {
+                padding: 14px 16px 14px 42px;
+                font-size: 1rem; /* Better for mobile zoom prevention */
+            }
+            .input-icon {
+                left: 14px;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+            .toggle-password {
+                top: 50%;
+                transform: translateY(-50%);
+            }
         }
     </style>
     <!-- Three.js and Vanta.js for 3D Background -->
@@ -119,23 +344,61 @@
 </head>
 <body>
     <div id="vanta-canvas"></div>
+    <div class="particles-container">
+        <div class="particle" style="width: 5px; height: 5px; top: 15%; left: 10%; animation-delay: -1s;"></div>
+        <div class="particle" style="width: 7px; height: 7px; top: 40%; left: 85%; animation-delay: -3s;"></div>
+        <div class="particle" style="width: 4px; height: 4px; top: 80%; left: 30%; animation-delay: -6s;"></div>
+        <div class="particle" style="width: 9px; height: 9px; top: 60%; left: 5%; animation-delay: -9s;"></div>
+    </div>
     <div class="auth-container">
         <div class="auth-header">
-            <h2 id="auth-title">Welcome Back</h2>
+            <img src="nova_logo.png" alt="Nova AI Logo" class="auth-logo">
+            <h2 id="auth-title">Welcome to Nova AI</h2>
             <p id="auth-subtitle">Please enter your details to sign in.</p>
         </div>
         <form id="auth-form">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" placeholder="Enter your username" required>
+                <div class="input-wrapper">
+                    <input type="text" id="username" placeholder="Enter your username" required>
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" placeholder="••••••••" required>
+                <div class="input-wrapper">
+                    <input type="password" id="password" placeholder="••••••••" required>
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <button type="button" class="toggle-password" id="toggle-password" title="Show/Hide Password">
+                        <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
+                </div>
             </div>
-            <button type="submit" class="auth-btn" id="submit-btn">Sign In</button>
-            <div id="error-msg" class="error-message">Invalid credentials. Please try again.</div>
+            <div class="form-footer">
+                <a href="#" class="forgot-link" onclick="handleForgot(event)">Forgot Password?</a>
+            </div>
+            <button type="submit" class="auth-btn" id="submit-btn">
+                <span class="btn-text">Sign In</span>
+                <div class="spinner"></div>
+            </button>
+            <div id="error-msg" class="error-message">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span id="error-text">Invalid credentials. Please try again.</span>
+            </div>
         </form>
+        
+        <div class="separator"><span>OR CONTINUE WITH</span></div>
+        
+        <div class="social-login">
+            <button type="button" class="social-btn google-btn" onclick="handleSocial('Google')">
+                <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                Continue with Google
+            </button>
+            <button type="button" class="social-btn" onclick="handleSocial('GitHub')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.43.372.823 1.102.823 2.222 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                Continue with GitHub
+            </button>
+        </div>
         <div class="toggle-auth">
             <span id="toggle-text">Don't have an account?</span>
             <a href="#" id="toggle-link">Sign Up</a>
@@ -172,22 +435,86 @@
 
         let isLogin = true;
 
+        const passwordInput = document.getElementById('password');
+        const togglePasswordBtn = document.getElementById('toggle-password');
+        const eyeIcon = document.getElementById('eye-icon');
+
+        const EYE_OPEN = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>`;
+        const EYE_CLOSED = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>`;
+
+        togglePasswordBtn.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            eyeIcon.innerHTML = type === 'password' ? EYE_OPEN : EYE_CLOSED;
+        });
+
+        function handleForgot(e) {
+            e.preventDefault();
+            alert('Password reset link sent to your email (Demo Mode).');
+        }
+
+        async function handleSocial(provider) {
+            const btn = event.currentTarget;
+            const originalHtml = btn.innerHTML;
+            
+            // Disable all buttons to prevent multiple clicks
+            document.querySelectorAll('button').forEach(b => b.disabled = true);
+            
+            // Show loading state
+            btn.classList.add('loading');
+            const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+            
+            try {
+                // Simulate a realistic secure handshake delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Mock successful authentication
+                const mockToken = "social_access_token_" + Math.random().toString(36).substr(2);
+                const mockUser = provider === 'google' ? "Google_User" : "GitHub_User";
+                
+                localStorage.setItem('token', mockToken);
+                localStorage.setItem('username', mockUser);
+                
+                // Redirect to dashboard
+                window.location.href = "/";
+            } catch (error) {
+                console.error('Social login simulation failed:', error);
+                document.querySelectorAll('button').forEach(b => b.disabled = false);
+                btn.classList.remove('loading');
+            }
+        }
+
         toggleLink.addEventListener('click', (e) => {
             e.preventDefault();
             isLogin = !isLogin;
             authTitle.innerText = isLogin ? 'Welcome Back' : 'Create Account';
             authSubtitle.innerText = isLogin ? 'Please enter your details to sign in.' : 'Join us to start chatting with AI.';
-            submitBtn.innerText = isLogin ? 'Sign In' : 'Sign Up';
+            
+            // Fix: Update only the text span, not the entire button
+            const btnText = submitBtn.querySelector('.btn-text');
+            btnText.innerText = isLogin ? 'Sign In' : 'Sign Up';
+            
             toggleText.innerText = isLogin ? "Don't have an account?" : 'Already have an account?';
             toggleLink.innerText = isLogin ? 'Sign Up' : 'Sign In';
             errorMsg.style.display = 'none';
         });
+
+        // API Helper
+        function getApiUrl(path) {
+            const origin = window.location.origin;
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            return `${origin}${cleanPath}`;
+        }
 
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             errorMsg.style.display = 'none';
+
+            // Set loading state
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
 
             const url = isLogin ? '/api/login' : '/api/signup';
             
@@ -197,12 +524,12 @@
                     const formData = new FormData();
                     formData.append('username', username);
                     formData.append('password', password);
-                    response = await fetch(url, {
+                    response = await fetch(getApiUrl(url), {
                         method: 'POST',
                         body: formData
                     });
                 } else {
-                    response = await fetch(url, {
+                    response = await fetch(getApiUrl(url), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ username, password })
@@ -221,12 +548,24 @@
                     }
                 } else {
                     const error = await response.json();
-                    errorMsg.innerText = error.detail || 'An error occurred.';
-                    errorMsg.style.display = 'block';
+                    const errorText = document.getElementById('error-text');
+                    errorText.innerText = error.detail || 'An error occurred.';
+                    errorMsg.style.display = 'flex';
+                    
+                    // Trigger shake
+                    errorMsg.classList.remove('shake');
+                    void errorMsg.offsetWidth; // Force reflow
+                    errorMsg.classList.add('shake');
                 }
             } catch (err) {
-                errorMsg.innerText = 'Server error. Please try again later.';
-                errorMsg.style.display = 'block';
+                const errorText = document.getElementById('error-text');
+                errorText.innerText = 'Server error. Please try again later.';
+                errorMsg.style.display = 'flex';
+                errorMsg.classList.add('shake');
+            } finally {
+                // Restore state
+                submitBtn.classList.remove('loading');
+                submitBtn.disabled = false;
             }
         });
     </script>

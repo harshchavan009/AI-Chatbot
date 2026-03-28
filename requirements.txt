@@ -10,3 +10,6 @@ aiohttp
 pytest
 httpx
 google-generativeai
+motor
+python-jose[cryptography]
+passlib[bcrypt]

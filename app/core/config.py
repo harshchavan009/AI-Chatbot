@@ -10,14 +10,21 @@ class Settings(BaseSettings):
     """
     APP_NAME: str = os.getenv("APP_NAME", "AI Chatbot")
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
+    PRODUCTION: bool = os.getenv("PRODUCTION", "false").lower() == "true"
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL_NAME: str = os.getenv("GEMINI_MODEL_NAME", "gemini-flash-lite-latest")
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() == "true"
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-super-secret-key-12345")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     PORT: int = int(os.getenv("PORT", 8000))
+    
+    # Database Settings
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    DATABASE_NAME: str = os.getenv("DATABASE_NAME", "chatbot_db")
+    MAX_CONTEXT_MESSAGES: int = int(os.getenv("MAX_CONTEXT_MESSAGES", 10))
 
     class Config:
         env_file = ".env"

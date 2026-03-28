@@ -87,7 +87,25 @@ Once the server is running, you can access:
 
 ---
 
-## 🚢 Deployment (Railway / Render)
+## 🚢 Deployment (Docker / Railway / Render)
+
+### Running with Docker (Recommended for Local & Server)
+
+The easiest way to run the chatbot is using Docker and Docker Compose.
+
+1. **Pre-requisites:** Install Docker and Docker Compose.
+2. **Environment Setup:** Ensure you have a `.env` file with your `OPENAI_API_KEY` and `TELEGRAM_BOT_TOKEN`.
+3. **Run the Chatbot:**
+   ```bash
+   docker-compose up --build -d
+   ```
+4. **Access the Chatbot:**
+   - **Web UI:** `http://localhost:8000`
+   - **Telegram Bot:** Check your bot on Telegram.
+5. **Stop the Chatbot:**
+   ```bash
+   docker-compose down
+   ```
 
 ### Render Deployment
 1. Connect your GitHub repository to Render.
