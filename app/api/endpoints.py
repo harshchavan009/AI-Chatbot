@@ -361,7 +361,7 @@ class ChatService:
                             gemini_history.append({"role": role, "parts": [m["content"]]})
                         
                         chat = model.start_chat(history=gemini_history)
-                        response = await chat.send_message_async(contents)
+                        response = await chat.send_message_async(contents, request_options={"timeout": 10})
                         return response.text
                     except Exception as e:
                         error_str = str(e)
@@ -376,6 +376,7 @@ class ChatService:
                             break
                         break 
         
+        context = await self.get_search_context(user_input, language) if not image_data else ""
         if context:
             return context
         
@@ -427,7 +428,7 @@ class ChatService:
                     model = genai.GenerativeModel(model_name, system_instruction=system_instr)
                     gemini_history = [{"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]} for m in history[:-1]]
                     chat = model.start_chat(history=gemini_history)
-                    response = await chat.send_message_async(contents, stream=True, generation_config=generation_config)
+                    response = await chat.send_message_async(contents, stream=True, generation_config=generation_config, request_options={"timeout": 10})
                     async for chunk in response:
                         if chunk.text: 
                             yield chunk.text

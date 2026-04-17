@@ -317,7 +317,7 @@ async function switchConversation(id) {
         const data = await response.json();
         chatWindow.innerHTML = '';
         data.messages.forEach(msg => {
-            addMessage(msg.role, msg.content, false);
+            addMessage(msg.content, msg.role);
         });
         chatWindow.scrollTop = chatWindow.scrollHeight;
     } catch (error) {
