@@ -3,6 +3,7 @@ const chatForm = document.getElementById('chat-form');
 const userInput = document.getElementById('user-input');
 const languageDropdown = document.getElementById('language-dropdown');
 const selectedLangText = document.getElementById('selected-lang-text');
+// Token is retrieved fresh from localStorage in each API call to avoid stale session issues
 
 // API Helper
 function getApiUrl(path) {
@@ -243,12 +244,7 @@ function setTheme(theme) {
     }
 }
 
-// Check for authentication token - consolidate as early as possible
-const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-if (token && !localStorage.getItem('access_token')) {
-    localStorage.setItem('access_token', token); // Migrate if needed
-}
-
+// Check for authentication token - consolidated at top of file
 if (!token) {
     window.location.href = '/login.html';
 }
@@ -259,12 +255,12 @@ const username = localStorage.getItem('username') || 'User';
 
 // Sidebar and History Logic
 async function loadConversations() {
-    const token = localStorage.getItem('access_token');
-    if (!token) return;
+    const freshToken = localStorage.getItem('access_token');
+    if (!freshToken) return;
 
     try {
         const response = await fetch(getApiUrl('/api/conversations'), {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${freshToken}` }
         });
         const conversations = await response.json();
         renderHistoryList(conversations);
@@ -307,16 +303,16 @@ async function switchConversation(id) {
         item.classList.toggle('active', item.getAttribute('data-id') === id);
     });
 
-    // Hide onboarding dashboard
+    // ... (rest of switchConversation logic)
     const dashboard = document.querySelector('.dashboard-onboarding');
     if (dashboard) dashboard.style.display = 'none';
     
     chatWindow.innerHTML = '<div class="history-loading">Loading messages...</div>';
 
-    const token = localStorage.getItem('access_token');
     try {
+        const freshToken = localStorage.getItem('access_token');
         const response = await fetch(getApiUrl(`/api/conversations/${id}`), {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${freshToken}` }
         });
         const data = await response.json();
         chatWindow.innerHTML = '';
@@ -345,7 +341,6 @@ async function promptRename(id, oldTitle) {
     const newTitle = prompt('Enter new title for this chat:', oldTitle);
     if (!newTitle || newTitle === oldTitle) return;
 
-    const token = localStorage.getItem('access_token');
     try {
         await fetch(getApiUrl(`/api/conversations/${id}`), {
             method: 'PATCH',
@@ -364,7 +359,6 @@ async function promptRename(id, oldTitle) {
 async function deleteConversation(id) {
     if (!confirm('Are you sure you want to delete this conversation?')) return;
 
-    const token = localStorage.getItem('access_token');
     try {
         await fetch(getApiUrl(`/api/conversations/${id}`), {
             method: 'DELETE',
@@ -403,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     setTheme(savedTheme);
     
-    if (activeToken) {
+    if (localStorage.getItem('access_token')) {
         const username = localStorage.getItem('username') || 'User';
         if (usernameDisplay) usernameDisplay.innerText = username;
         if (userAvatarSidebar) userAvatarSidebar.innerText = username[0].toUpperCase();
@@ -422,7 +416,6 @@ newChatBtn.addEventListener('click', startNewChat);
 
 logoutBtnSidebar.addEventListener('click', () => {
     localStorage.removeItem('access_token');
-    localStorage.removeItem('token');
     localStorage.removeItem('username');
     window.location.href = 'login.html';
 });
@@ -720,11 +713,12 @@ chatForm.addEventListener('submit', async (e) => {
 
     try {
         const fetchResponse = async () => {
+            const freshToken = localStorage.getItem('access_token');
             const response = await fetch(getApiUrl('/api/chat/stream'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    'Authorization': `Bearer ${freshToken}`
                 },
                 body: JSON.stringify({
                     user_input: text || (currentImage ? "What is in this image?" : (currentDoc ? "Analyze this document." : "")),
@@ -742,6 +736,10 @@ chatForm.addEventListener('submit', async (e) => {
                 localStorage.removeItem('access_token');
                 window.location.href = '/login.html';
                 return;
+            }
+
+            if (response.status === 429) {
+                throw new Error('Our AI models are hitting their usage limits. Please wait a few seconds and try again.');
             }
 
             if (!response.ok) {

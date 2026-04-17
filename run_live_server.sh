@@ -5,7 +5,7 @@
 
 PORT=8000
 
-echo "Starting Live Server on http://127.0.0.1:$PORT..."
+echo "Starting Live Server on http://0.0.0.0:$PORT..."
 echo "Press CTRL+C to stop the server."
 
 # Check if uvicorn is installed

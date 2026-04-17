@@ -3,18 +3,31 @@ from app.core.config import settings
 from app.core.logging import logger
 from types import SimpleNamespace
 import asyncio
+import json
+import os
+import uuid
+from datetime import datetime
 
 class MockCollection:
-    def __init__(self, name):
+    def __init__(self, name, db_instance):
         self.name = name
-        self.data = {} # Simple in-memory storage: id -> document
+        self.db = db_instance
+        # data is stored in the parent MockDB instance to facilitate global persistence
+        if self.name not in self.db.all_data:
+            self.db.all_data[self.name] = {}
+        self.data = self.db.all_data[self.name]
+
+    def _save(self):
+        """Trigger a save in the parent database."""
+        self.db.save_to_disk()
 
     async def find_one(self, query):
-        id_val = query.get("id")
+        # Handle simple ID lookups
+        id_val = query.get("id") or query.get("_id")
         if id_val and id_val in self.data:
             return self.data.get(id_val)
         
-        # General search fallback
+        # General search
         for doc in self.data.values():
             match = True
             for k, v in query.items():
@@ -26,112 +39,162 @@ class MockCollection:
         return None
 
     async def update_one(self, query, update, upsert=False):
-        # 1. Try to find existing doc
-        found_id = query.get("id")
-        if found_id and found_id not in self.data:
-            found_id = None # Reset if id in query doesn't exist yet
-            
-        if not found_id:
-            for d_id, d_val in self.data.items():
-                match = True
-                for k, v in query.items():
-                    if d_val.get(k) != v:
-                        match = False
-                        break
-                if match:
-                    found_id = d_id
-                    break
+        doc = await self.find_one(query)
         
-        # 2. If not found and upsert, create new with random ID (or use ID from query if provided)
-        if not found_id:
+        if not doc:
             if upsert:
-                # Use query ID if provided, otherwise random uuid
-                target_id = query.get("id") or str(uuid.uuid4()) if 'uuid' in locals() else query.get("id") or str(__import__('uuid').uuid4())
-                self.data[target_id] = {"id": target_id}
-                found_id = target_id
+                # Basic upsert logic
+                new_id = query.get("id") or query.get("_id") or str(uuid.uuid4())
+                doc = {"id": new_id, "_id": new_id}
                 if "$setOnInsert" in update:
-                    self.data[found_id].update(update["$setOnInsert"])
+                    doc.update(update["$setOnInsert"])
+                self.data[new_id] = doc
             else:
-                return SimpleNamespace(modified_count=0, upserted_id=None)
+                return SimpleNamespace(modified_count=0, matched_count=0, upserted_id=None)
         
-        doc = self.data[found_id]
+        matched_count = 1
         
-        # 3. Apply updates
+        # Apply updates
+        if "$set" in update:
+            for k, v in update["$set"].items():
+                doc[k] = v
+        
         if "$push" in update:
             for field, value in update["$push"].items():
                 if field not in doc or not isinstance(doc[field], list):
                     doc[field] = []
-                # Ensure it's a list before appending
                 doc[field].append(value)
         
-        if "$set" in update:
-            doc.update(update["$set"])
-            
-        return SimpleNamespace(modified_count=1, upserted_id=found_id)
+        self._save()
+        return SimpleNamespace(modified_count=1, matched_count=matched_count, upserted_id=doc.get("id"))
 
     async def insert_one(self, document):
         if "_id" not in document:
-            import uuid
             document["_id"] = str(uuid.uuid4())
-        
-        # Keep internal 'id' for backward compat with MockCollection find logic
         if "id" not in document:
             document["id"] = document["_id"]
             
-        self.data[document["id"]] = document
+        self.data[document["_id"]] = document
+        self._save()
         return SimpleNamespace(inserted_id=document["_id"])
 
     def find(self, query=None):
         if not query:
             results = list(self.data.values())
         else:
-            username = query.get("username")
-            results = [doc for doc in self.data.values() if not username or doc.get("username") == username]
-        
-        class MockCursor:
-            def __init__(self, data):
-                self.data = data
-                self.index = 0
-            def sort(self, field, direction):
-                # Simple sort by field if needed, but not implemented for mock
-                return self
-            def limit(self, n):
-                self.data = self.data[:n]
-                return self
-            def __aiter__(self):
-                return self
-            async def __anext__(self):
-                if self.index >= len(self.data):
-                    raise StopAsyncIteration
-                val = self.data[self.index]
-                self.index += 1
-                return val
+            results = []
+            for doc in self.data.values():
+                match = True
+                for k, v in query.items():
+                    if doc.get(k) != v:
+                        match = False
+                        break
+                if match:
+                    results.append(doc)
         
         return MockCursor(results)
 
     async def delete_many(self, query):
-        id_val = query.get("id")
-        username = query.get("username")
-        if id_val in self.data and self.data[id_val].get("username") == username:
-            del self.data[id_val]
-            return SimpleNamespace(deleted_count=1)
-        return SimpleNamespace(deleted_count=0)
+        to_delete = []
+        for doc_id, doc in self.data.items():
+            match = True
+            for k, v in query.items():
+                if doc.get(k) != v:
+                    match = False
+                    break
+            if match:
+                to_delete.append(doc_id)
+        
+        deleted_count = 0
+        for doc_id in to_delete:
+            del self.data[doc_id]
+            deleted_count += 1
+            
+        if deleted_count > 0:
+            self._save()
+        return SimpleNamespace(deleted_count=deleted_count)
 
     async def count_documents(self, filter=None):
         if not filter:
             return len(self.data)
-        # Simple filter support for username
-        username = filter.get("username")
-        if username:
-            return len([doc for doc in self.data.values() if doc.get("username") == username])
-        return len(self.data)
+        
+        count = 0
+        for doc in self.data.values():
+            match = True
+            for k, v in filter.items():
+                if doc.get(k) != v:
+                    match = False
+                    break
+            if match:
+                count += 1
+        return count
+
+class MockCursor:
+    def __init__(self, data):
+        self._data = data
+        self._index = 0
+
+    def sort(self, field, direction=-1):
+        def sort_key(doc):
+            val = doc.get(field)
+            if isinstance(val, datetime):
+                return val.timestamp()
+            if isinstance(val, str):
+                try:
+                    # Try to parse ISO format strings
+                    return datetime.fromisoformat(val).timestamp()
+                except:
+                    return val
+            return val or 0
+
+        self._data.sort(key=sort_key, reverse=(direction == -1))
+        return self
+
+    def limit(self, n):
+        self._data = self._data[:n]
+        return self
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._index >= len(self._data):
+            raise StopAsyncIteration
+        val = self._data[self._index]
+        self._index += 1
+        return val
 
 class MockDB:
-    def __init__(self):
-        self.users = MockCollection("users")
-        self.conversations = MockCollection("conversations")
-        self.messages = MockCollection("messages")
-        self.searches = MockCollection("searches")
+    def __init__(self, storage_path="mock_db.json"):
+        self.storage_path = storage_path
+        self.all_data = {}
+        self.load_from_disk()
+        
+        self.users = MockCollection("users", self)
+        self.conversations = MockCollection("conversations", self)
+        self.messages = MockCollection("messages", self)
+        self.searches = MockCollection("searches", self)
+
+    def load_from_disk(self):
+        if os.path.exists(self.storage_path):
+            try:
+                with open(self.storage_path, 'r') as f:
+                    self.all_data = json.load(f)
+                logger.info(f"Loaded MockDB from {self.storage_path}")
+            except Exception as e:
+                logger.error(f"Failed to load MockDB: {e}")
+                self.all_data = {}
+        else:
+            self.all_data = {}
+
+    def save_to_disk(self):
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(os.path.abspath(self.storage_path)), exist_ok=True)
+            with open(self.storage_path, 'w') as f:
+                json.dump(self.all_data, f, default=str)
+        except Exception as e:
+            logger.error(f"Failed to save MockDB: {e}")
 
 class Database:
     client: AsyncIOMotorClient = None
@@ -142,35 +205,55 @@ class Database:
     messages = None
     searches = None
 
+    def _switch_to_mock(self, reason: str):
+        """Helper to switch to persistent mock storage with clean logging."""
+        logger.info(f"System: {reason}. Switching to Adaptive Local Storage (Persistent).")
+        self.db = MockDB(storage_path="data/mock_db.json")
+        self.is_mock = True
+        self.users = self.db.users
+        self.conversations = self.db.conversations
+        self.messages = self.db.messages
+        self.searches = self.db.searches
+
     async def connect_to_storage(self):
         """
-        Create database connection on startup with fallback.
+        Create database connection on startup with adaptive fallback.
         """
+        # 1. Check for explicit mock override
+        if settings.USE_MOCK_STORAGE:
+            self._switch_to_mock("USE_MOCK_STORAGE enabled")
+            return
+
         try:
             MONGODB_URL = settings.MONGODB_URL
-            logger.info(f"Attempting to connect to MongoDB at {MONGODB_URL}...")
-            self.client = AsyncIOMotorClient(MONGODB_URL, serverSelectionTimeoutMS=2000)
-            # Verify connection
+            
+            # 2. Adaptive timeout for local environments
+            is_local = "localhost" in MONGODB_URL or "127.0.0.1" in MONGODB_URL
+            timeout = 500 if is_local else 5000 # 500ms for local, 5s for Cloud
+            
+            if is_local:
+                logger.info("Detecting local environment... (Fast Check)")
+            else:
+                logger.info(f"Connecting to Cloud MongoDB at {MONGODB_URL[:20]}...")
+
+            self.client = AsyncIOMotorClient(MONGODB_URL, serverSelectionTimeoutMS=timeout)
+            
+            # 3. Fast verification ping
             await self.client.admin.command('ping')
-            self.db = self.client.get_database("ai_chatbot")
+            
+            self.db = self.client.get_database(settings.DATABASE_NAME)
             self.users = self.db.users
             self.conversations = self.db.conversations
             self.messages = self.db.messages
             self.searches = self.db.searches
+            self.is_mock = False
             logger.info("Successfully connected to MongoDB.")
+            
         except Exception as e:
-            logger.warning(f"MongoDB connection failed: {str(e)}. Falling back to in-memory storage.")
-            self.db = MockDB()
-            self.is_mock = True
-            self.users = self.db.users
-            self.conversations = self.db.conversations
-            self.messages = self.db.messages
-            self.searches = self.db.searches
+            reason = "Local MongoDB not found" if "localhost" in settings.MONGODB_URL else f"Cloud connection failed: {str(e)}"
+            self._switch_to_mock(reason)
 
     async def close_storage_connection(self):
-        """
-        Close database connection on shutdown.
-        """
         if self.client and not self.is_mock:
             self.client.close()
             logger.info("Closed MongoDB connection")

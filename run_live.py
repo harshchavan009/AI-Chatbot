@@ -36,7 +36,7 @@ def run_live():
     )
     
     print("\nAI Chatbot is now running live!")
-    print("Web UI: http://localhost:8000")
+    print("Web UI: http://0.0.0.0:8000 (Live Server)")
     print("Telegram Bot: (Check your bot on Telegram)")
     print("\nPress Ctrl+C to stop.")
     

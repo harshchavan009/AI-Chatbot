@@ -808,7 +808,7 @@ footer {
 
 .professional-footer {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     margin-top: 1rem;
     padding-top: 0.75rem;
@@ -817,7 +817,7 @@ footer {
     color: var(--text-secondary);
 }
 
-.footer-left {
+.footer-center {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -827,7 +827,7 @@ footer {
     color: var(--border-color);
 }
 
-.footer-left strong {
+.footer-center strong {
     color: var(--text-primary);
     font-weight: 600;
 }

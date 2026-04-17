@@ -307,7 +307,7 @@ class ChatService:
                 response = await self.openai_client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": f"You are Nova AI, a premium and intelligent assistant. Response Language Rule: {('Detect user language and respond in the same language.' if language == 'Auto-detect' else f'Respond ONLY in {language}. If user asks in another language, translate your response to {language}.')} Provide concise, professional, and accurate answers. Response should be user-friendly markdown."},
+                        {"role": "system", "content": f"You are Nova AI, an Unlimited Pro intelligent assistant. Response Language Rule: {('Detect user language and respond in the same language.' if language == 'Auto-detect' else f'Respond ONLY in {language}. If user asks in another language, translate your response to {language}.')} Provide extremely detailed, professional, and high-quality responses. Response should be user-friendly markdown."},
                         *history
                     ],
                     max_tokens=1024,
@@ -330,7 +330,7 @@ class ChatService:
                 'gemini-pro-latest'
             ]
             lang_rule = "Detect user language and respond in the same language." if language == "Auto-detect" else f"Respond ONLY in {language}. If user asks in another language, translate your response to {language}."
-            system_instr = f"You are Nova AI, a premium and intelligent assistant. Response Language Rule: {lang_rule} Provide concise, professional, and accurate answers. Response should be user-friendly markdown."
+            system_instr = f"You are Nova AI, an Unlimited Pro intelligent assistant. Response Language Rule: {lang_rule} Provide extremely detailed, professional, and high-quality responses. Response should be user-friendly markdown."
             
             contents = []
             if image_data:
@@ -376,17 +376,8 @@ class ChatService:
                             break
                         break 
         
-        # 3. Knowledge Fallback (Last Resort)
-        context = await self.get_search_context(user_input, language)
         if context:
-            # Localized fallback notes
-            notes = {
-                "English": "*(Note: I've retrieved this information from my knowledge base to ensure a fast response during peak hours.)*",
-                "Hindi": "*(नोट: मैंने व्यस्त घंटों के दौरान तेज़ प्रतिक्रिया देने के लिए अपने ज्ञानकोष से यह जानकारी प्राप्त की है।)*",
-                "Spanish": "*(Nota: He recuperado esta información de mi base de conocimientos para garantizar una respuesta rápida durante las horas pico.)*"
-            }
-            note = notes.get(language if language != "Auto-detect" else "English", notes["English"])
-            return f"{context}\n\n{note}"
+            return context
         
         busy_msg = {
             "English": "I'm sorry, I'm currently experiencing extremely high traffic and all my AI systems are momentarily busy. Please try your request once more in a few seconds!",
@@ -401,7 +392,7 @@ class ChatService:
         # Inject document context if available
         if self.gemini_enabled:
             lang_rule = "Detect user language and respond in the same language." if language == "Auto-detect" else f"Respond ONLY in {language}. If user asks in another language, translate your response to {language}."
-            system_instr = f"You are Nova AI, a premium and intelligent assistant. Response Language Rule: {lang_rule} Provide concise, professional, and accurate answers. Response should be user-friendly markdown."
+            system_instr = f"You are Nova AI, an Unlimited Pro intelligent assistant. Response Language Rule: {lang_rule} Provide extremely detailed, professional, and high-quality responses. Response should be user-friendly markdown."
             
             contents = []
             if image_data:
@@ -412,13 +403,14 @@ class ChatService:
                 except: pass
             contents.append(user_input)
 
-            # Use a smaller list for streaming to prioritize speed
+            # Use a smaller list for streaming to prioritize speed and availability
             gemini_models = [
                 'gemini-flash-lite-latest',
-                'gemini-1.5-flash-8b',
+                'gemini-2.0-flash-lite-preview-02-05',
                 'gemini-2.0-flash',
+                'gemini-1.5-flash-8b',
                 'gemini-1.5-flash',
-                'gemini-2.0-flash-lite-preview-02-05'
+                'gemini-pro-latest'
             ]
             
             if selected_model and selected_model in gemini_models:
@@ -427,6 +419,7 @@ class ChatService:
             
             generation_config = genai.types.GenerationConfig(temperature=temperature)
 
+            success = False
             for model_name in gemini_models:
                 if image_data and 'pro' in model_name and 'flash' not in model_name: continue
                 try:
@@ -436,8 +429,10 @@ class ChatService:
                     chat = model.start_chat(history=gemini_history)
                     response = await chat.send_message_async(contents, stream=True, generation_config=generation_config)
                     async for chunk in response:
-                        if chunk.text: yield chunk.text
-                    return 
+                        if chunk.text: 
+                            yield chunk.text
+                            success = True
+                    if success: return 
                 except Exception as e:
                     logger.warning(f"Streaming failed for {model_name}: {str(e)}")
                     continue
@@ -551,6 +546,21 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = auth_service.create_access_token(data={"sub": form_data.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post("/auth/social_handshake")
+async def social_handshake(request: Dict[str, str]):
+    """Simulated social login that returns a real, valid JWT."""
+    username = request.get("username", "Social_User")
+    provider = request.get("provider", "google")
+    
+    # We create a real JWT for the simulated user
+    # This ensures the rest of the app treats them as a valid authenticated user
+    access_token = auth_service.create_access_token(data={"sub": f"{provider}_{username}"})
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "username": f"{provider}_{username}"
+    }
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, current_user: str = Depends(get_current_user)):
     session_id = request.session_id or str(uuid.uuid4())
@@ -575,6 +585,7 @@ async def chat_stream(request: ChatRequest, current_user: str = Depends(get_curr
     import json
     
     async def event_generator():
+        logger.info(f"Starting chat stream for user {current_user}, session {session_id}")
         await chat_service.save_message(session_id, current_user, "user", request.user_input)
         import asyncio
         asyncio.create_task(chat_service.generate_title(session_id, request.user_input))

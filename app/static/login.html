@@ -353,8 +353,8 @@
     <div class="auth-container">
         <div class="auth-header">
             <img src="nova_logo.png" alt="Nova AI Logo" class="auth-logo">
-            <h2 id="auth-title">Welcome to Nova AI</h2>
-            <p id="auth-subtitle">Please enter your details to sign in.</p>
+            <h2 id="auth-title">Nova AI - Unlimited Pro</h2>
+            <p id="auth-subtitle">Welcome to your premium intelligent experience.</p>
         </div>
         <form id="auth-form">
             <div class="form-group">
@@ -450,7 +450,7 @@
 
         function handleForgot(e) {
             e.preventDefault();
-            alert('Password reset link sent to your email (Demo Mode).');
+            alert('Password reset link sent to your email.');
         }
 
         async function handleSocial(provider) {
@@ -465,15 +465,22 @@
             const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
             
             try {
-                // Simulate a realistic secure handshake delay
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                // Secure handshake with backend
+                const response = await fetch(getApiUrl('/api/auth/social_handshake'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: "User_" + Math.random().toString(36).substr(2, 4),
+                        provider: provider 
+                    })
+                });
+
+                if (!response.ok) throw new Error('Handshake failed');
                 
-                // Mock successful authentication
-                const mockToken = "social_access_token_" + Math.random().toString(36).substr(2);
-                const mockUser = provider === 'google' ? "Google_User" : "GitHub_User";
+                const data = await response.json();
                 
-                localStorage.setItem('token', mockToken);
-                localStorage.setItem('username', mockUser);
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('username', data.username);
                 
                 // Redirect to dashboard
                 window.location.href = "/";

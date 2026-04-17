@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "chatbot_db")
     MAX_CONTEXT_MESSAGES: int = int(os.getenv("MAX_CONTEXT_MESSAGES", 10))
+    USE_MOCK_STORAGE: bool = os.getenv("USE_MOCK_STORAGE", "false").lower() == "true"
 
     class Config:
         env_file = ".env"

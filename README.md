@@ -75,15 +75,15 @@ TELEGRAM_BOT_TOKEN=...
 # Start the FastAPI server
 python -m app.main
 ```
-The app will be available at `http://localhost:8000`.
+The app will be available at `http://0.0.0.0:8000` (or your live server IP).
 
 ---
 
 ## 🌐 API Documentation
 
 Once the server is running, you can access:
-- **Swagger UI:** `http://localhost:8000/docs`
-- **ReDoc:** `http://localhost:8000/redoc`
+- **Swagger UI:** `http://<your-server-ip>:8000/docs`
+- **ReDoc:** `http://<your-server-ip>:8000/redoc`
 
 ---
 
@@ -100,7 +100,7 @@ The easiest way to run the chatbot is using Docker and Docker Compose.
    docker-compose up --build -d
    ```
 4. **Access the Chatbot:**
-   - **Web UI:** `http://localhost:8000`
+   - **Web UI:** `http://<your-server-ip>:8000`
    - **Telegram Bot:** Check your bot on Telegram.
 5. **Stop the Chatbot:**
    ```bash
@@ -124,7 +124,7 @@ The easiest way to run the chatbot is using Docker and Docker Compose.
 ## 🧪 Testing
 
 To test the chatbot:
-1. Open `http://localhost:8000` in your browser.
+1. Open `http://<your-server-ip>:8000` in your browser.
 2. Send a message to your Telegram Bot.
 3. Check the `chatbot.log` file for logs.
 

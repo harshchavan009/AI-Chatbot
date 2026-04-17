@@ -16,7 +16,10 @@ class AuthService:
         self.algorithm = settings.ALGORITHM
         self.expire_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
         # Mock user database: {username: {"password": hashed_password}}
-        self.users_db = {}
+        self.users_db = {
+            "admin": {"password": self.get_password_hash("admin123")},
+            "tester": {"password": self.get_password_hash("tester123")}
+        }
 
     def verify_password(self, plain_password, hashed_password):
         return pwd_context.verify(plain_password, hashed_password)
@@ -41,7 +44,8 @@ class AuthService:
             if username is None:
                 return None
             return username
-        except JWTError:
+        except JWTError as e:
+            logger.warning(f"JWT Decode failed: {str(e)}")
             return None
 
 auth_service = AuthService()

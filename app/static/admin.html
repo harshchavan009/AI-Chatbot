@@ -172,7 +172,7 @@
 
     <script>
         async function fetchStats() {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             if (!token) {
                 window.location.href = '/login.html';
                 return;
@@ -227,7 +227,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('token');
+            localStorage.removeItem('access_token');
             window.location.href = '/login.html';
         }
 
