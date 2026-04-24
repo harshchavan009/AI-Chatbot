@@ -479,7 +479,8 @@ class ChatService:
 
             for model_name in gemini_models:
                 try:
-                    for chunk in self.gemini_client.models.generate_content_stream(
+                    # Using the async client (.aio) for superior streaming performance
+                    async for chunk in self.gemini_client.aio.models.generate_content_stream(
                         model=model_name,
                         contents=contents,
                         config={'system_instruction': system_instr, 'temperature': temperature or 0.7}
@@ -487,7 +488,7 @@ class ChatService:
                         if chunk.text: yield chunk.text
                     return
                 except Exception as e:
-                    logger.warning(f"Stream failed for {model_name}: {str(e)}")
+                    logger.warning(f"Async stream failed for {model_name}: {str(e)}")
                     continue
         
         # Final fallback to non-streaming if everything else fails
