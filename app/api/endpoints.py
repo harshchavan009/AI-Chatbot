@@ -474,21 +474,35 @@ class ChatService:
                 parts.append({'mime_type': 'image/jpeg', 'data': clean_data})
             contents.append({'role': 'user', 'parts': parts})
 
-            gemini_models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest']
+            # Comprehensive model list with exact identifiers for the new SDK
+            gemini_models = [
+                'gemini-2.0-flash', 
+                'gemini-1.5-flash',
+                'gemini-1.5-flash-8b',
+                'gemini-1.5-pro'
+            ]
             if selected_model: gemini_models.insert(0, selected_model)
 
             for model_name in gemini_models:
                 try:
-                    # Using the async client (.aio) for superior streaming performance
+                    logger.info(f"Stream attempt: {model_name}")
                     async for chunk in self.gemini_client.aio.models.generate_content_stream(
                         model=model_name,
                         contents=contents,
                         config={'system_instruction': system_instr, 'temperature': temperature or 0.7}
                     ):
-                        if chunk.text: yield chunk.text
-                    return
+                        if chunk.text: 
+                            yield chunk.text
+                            success = True
+                    if success: return
                 except Exception as e:
-                    logger.warning(f"Async stream failed for {model_name}: {str(e)}")
+                    error_msg = str(e).lower()
+                    logger.warning(f"Async stream failed for {model_name}: {error_msg}")
+                    # If quota exceeded, move to next model IMMEDIATELY
+                    if "429" in error_msg or "quota" in error_msg:
+                        continue
+                    if "404" in error_msg or "not found" in error_msg:
+                        continue
                     continue
         
         # Final fallback to non-streaming if everything else fails
