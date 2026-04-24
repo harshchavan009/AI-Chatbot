@@ -422,23 +422,29 @@ async function updateConnectionStatus() {
 }
 
 // Check connection every 30 seconds
-setInterval(updateConnectionStatus, 30000);
+setTimeout(() => {
+    updateConnectionStatus();
+    setInterval(updateConnectionStatus, 30000);
+}, 2000);
 
 window.addEventListener('online', updateConnectionStatus);
 window.addEventListener('offline', updateConnectionStatus);
 
-// Event Listeners and Init
+// Move all initialization into a single safe DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
-    initVanta();
-    updateConnectionStatus();
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    setTheme(savedTheme);
-    
-    if (localStorage.getItem('access_token')) {
-        const username = localStorage.getItem('username') || 'User';
-        if (usernameDisplay) usernameDisplay.innerText = username;
-        if (userAvatarSidebar) userAvatarSidebar.innerText = username[0].toUpperCase();
-        loadConversations();
+    try {
+        initVanta();
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+        
+        if (localStorage.getItem('access_token')) {
+            const username = localStorage.getItem('username') || 'User';
+            if (usernameDisplay) usernameDisplay.innerText = username;
+            if (userAvatarSidebar) userAvatarSidebar.innerText = username[0].toUpperCase();
+            loadConversations();
+        }
+    } catch (e) {
+        console.error('Initialization error:', e);
     }
 });
 
