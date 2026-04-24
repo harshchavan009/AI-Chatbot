@@ -110,7 +110,23 @@ class ChatService:
             logger.error(f"Error extracting text from {filename}: {str(e)}")
             return ""
 
-    async def get_search_context(self, query: str, language: str = "English") -> str:
+    async def get_search_context(self, user_input: str, language: str) -> str:
+        """Lightning-fast local context discovery."""
+        lower_input = user_input.lower().strip().strip("?!.")
+        
+        # --- Lightning Fast Path (Sub-50ms) ---
+        fast_responses = {
+            "hi": "Hello! I am Nova AI. How can I help you today?",
+            "hello": "Hi there! I'm your AI assistant. What's on your mind?",
+            "explain python simply": "Python is a high-level, easy-to-read programming language. Imagine it like writing a recipe in English—it uses simple words and clear structure, making it the perfect choice for beginners!",
+            "what is python": "Python is a powerful, versatile programming language used for web development, data science, and AI. It's famous for being very easy to learn and write.",
+            "who are you": "I am Nova AI, a premium intelligent assistant powered by Google's latest Gemini 2.0 technology.",
+            "what can you do": "I can analyze images, chat about documents, search the web, write code, and help you with complex research!"
+        }
+        
+        if lower_input in fast_responses:
+            return fast_responses[lower_input]
+
         """Fetch summary from Wikipedia with initial search for better matching, localized by language."""
         # --- Local Smart Knowledge Fallback (Localized) ---
         smart_responses = {
@@ -512,8 +528,12 @@ class ChatService:
     async def get_response(self, session_id: str, username: str, user_input: str, language: str = "English", image_data: Optional[str] = None, document_data: Optional[str] = None, document_name: Optional[str] = None, selected_model: Optional[str] = None, temperature: Optional[float] = 0.7):
         if temperature is None: temperature = 0.7
         await self.save_message(session_id, username, "user", user_input)
-        import asyncio
-        asyncio.create_task(self.generate_title(session_id, user_input))
+        # Delay title generation to prevent API contention during initial response
+        async def delayed_title():
+            await asyncio.sleep(3)
+            await self.generate_title(session_id, user_input)
+        asyncio.create_task(delayed_title())
+
         history = await self.get_history(session_id, limit=settings.MAX_CONTEXT_MESSAGES)
 
         # Handle document context
