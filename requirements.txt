@@ -9,7 +9,7 @@ python-multipart
 aiohttp
 pytest
 httpx
-google-generativeai
+google-genai
 motor
 python-jose[cryptography]
 passlib[bcrypt]

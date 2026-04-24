@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import os
 from app.api.endpoints import router as api_router
 from app.core.config import settings
 from app.core.logging import logger
@@ -15,15 +16,20 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS Middleware - Hardened for production-grade reliability
+# CORS Middleware - Configurable for production
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
+
+@app.get("/health")
+async def root_health():
+    """Root health check for deployment platforms like Render."""
+    return {"status": "healthy", "service": settings.APP_NAME}
 
 # Include API routes
 app.include_router(api_router, prefix="/api")

@@ -2,7 +2,7 @@ import requests
 import json
 import uuid
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://nova-ai-chatbot-8b04.onrender.com"
 
 # 1. Signup / Handshake
 print("Attempting handshake...")

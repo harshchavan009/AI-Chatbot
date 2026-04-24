@@ -6,11 +6,12 @@ const selectedLangText = document.getElementById('selected-lang-text');
 // Token is retrieved fresh from localStorage in each API call to avoid stale session issues
 
 // API Helper
+const API_BASE_URL = window.location.origin; // Change this if backend is on a different URL
+
 function getApiUrl(path) {
-    const origin = window.location.origin;
     // Ensure we don't double slash
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    return `${origin}${cleanPath}`;
+    return `${API_BASE_URL}${cleanPath}`;
 }
 
 // Session State
@@ -245,7 +246,8 @@ function setTheme(theme) {
 }
 
 // Check for authentication token - consolidated at top of file
-if (!token) {
+const currentToken = localStorage.getItem('access_token');
+if (!currentToken) {
     window.location.href = '/login.html';
 }
 
@@ -256,17 +258,35 @@ const username = localStorage.getItem('username') || 'User';
 // Sidebar and History Logic
 async function loadConversations() {
     const freshToken = localStorage.getItem('access_token');
-    if (!freshToken) return;
+    if (!freshToken) {
+        historyList.innerHTML = '<div class="empty-history">Log in to see history</div>';
+        return;
+    }
 
     try {
+        // Add a timeout for the fetch to handle Render cold starts
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
         const response = await fetch(getApiUrl('/api/conversations'), {
-            headers: { 'Authorization': `Bearer ${freshToken}` }
+            headers: { 'Authorization': `Bearer ${freshToken}` },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) throw new Error('API Error');
+        
         const conversations = await response.json();
         renderHistoryList(conversations);
     } catch (error) {
         console.error('Error loading conversations:', error);
-        historyList.innerHTML = '<div class="error">Failed to load history</div>';
+        if (error.name === 'AbortError') {
+            historyList.innerHTML = '<div class="error">Server is waking up... Please wait.</div>';
+            // Retry after 5 seconds
+            setTimeout(loadConversations, 5000);
+        } else {
+            historyList.innerHTML = '<div class="error">Failed to load history</div>';
+        }
     }
 }
 
@@ -342,10 +362,11 @@ async function promptRename(id, oldTitle) {
     if (!newTitle || newTitle === oldTitle) return;
 
     try {
+        const freshToken = localStorage.getItem('access_token');
         await fetch(getApiUrl(`/api/conversations/${id}`), {
             method: 'PATCH',
             headers: { 
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${freshToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ title: newTitle })
@@ -360,9 +381,10 @@ async function deleteConversation(id) {
     if (!confirm('Are you sure you want to delete this conversation?')) return;
 
     try {
+        const freshToken = localStorage.getItem('access_token');
         await fetch(getApiUrl(`/api/conversations/${id}`), {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${freshToken}` }
         });
         if (id === currentSessionId) {
             startNewChat();
@@ -377,15 +399,30 @@ async function deleteConversation(id) {
 const connStatusBadge = document.getElementById('conn-status');
 const connStatusText = connStatusBadge.querySelector('.status-text');
 
-function updateConnectionStatus() {
-    if (navigator.onLine) {
-        connStatusBadge.classList.remove('reconnecting');
-        connStatusText.innerText = 'Connected ✅';
-    } else {
+async function updateConnectionStatus() {
+    if (!navigator.onLine) {
         connStatusBadge.classList.add('reconnecting');
-        connStatusText.innerText = 'Reconnecting...';
+        connStatusText.innerText = 'Offline ❌';
+        return;
+    }
+
+    try {
+        const res = await fetch(getApiUrl('/health'), { cache: 'no-store' });
+        if (res.ok) {
+            connStatusBadge.classList.remove('reconnecting');
+            connStatusText.innerText = 'Connected ✅';
+        } else {
+            connStatusBadge.classList.add('reconnecting');
+            connStatusText.innerText = 'Server Error ⚠️';
+        }
+    } catch (e) {
+        connStatusBadge.classList.add('reconnecting');
+        connStatusText.innerText = 'Waking Server... ⏳';
     }
 }
+
+// Check connection every 30 seconds
+setInterval(updateConnectionStatus, 30000);
 
 window.addEventListener('online', updateConnectionStatus);
 window.addEventListener('offline', updateConnectionStatus);
@@ -601,6 +638,9 @@ function addMessage(text, role, imageUrl = null, documentName = null) {
 }
 
 function updateMessageImage(bubble, imageUrl) {
+    // Check if image container already exists
+    if (bubble.querySelector('.image-container')) return;
+    
     const imgContainer = document.createElement('div');
     imgContainer.classList.add('image-container');
     
@@ -772,8 +812,15 @@ chatForm.addEventListener('submit', async (e) => {
                                 if (!assistantBubble) {
                                     assistantBubble = addMessage("", 'assistant');
                                 }
+                                // Use a dedicated text element to avoid clearing images
+                                let textEl = assistantBubble.querySelector('.message-text');
+                                if (!textEl) {
+                                    textEl = document.createElement('div');
+                                    textEl.classList.add('message-text');
+                                    assistantBubble.prepend(textEl);
+                                }
                                 fullText += data.chunk;
-                                assistantBubble.innerText = fullText;
+                                textEl.innerText = fullText;
                                 chatWindow.scrollTop = chatWindow.scrollHeight;
                             } else if (data.type === 'image' && data.url) {
                                 if (!typingIndicatorRemoved) {
