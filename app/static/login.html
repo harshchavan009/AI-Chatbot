@@ -508,7 +508,7 @@
 
         // API Helper
         function getApiUrl(path) {
-            const origin = window.location.origin;
+            const origin = 'https://nova-ai-chatbot-8b04.onrender.com';
             const cleanPath = path.startsWith('/') ? path : `/${path}`;
             return `${origin}${cleanPath}`;
         }

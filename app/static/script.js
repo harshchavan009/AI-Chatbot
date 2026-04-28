@@ -6,7 +6,7 @@ const selectedLangText = document.getElementById('selected-lang-text');
 // Token is retrieved fresh from localStorage in each API call to avoid stale session issues
 
 // API Helper
-const API_BASE_URL = window.location.origin; // Change this if backend is on a different URL
+const API_BASE_URL = 'https://nova-ai-chatbot-8b04.onrender.com';
 
 function getApiUrl(path) {
     // Ensure we don't double slash
