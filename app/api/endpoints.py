@@ -174,50 +174,8 @@ class ChatService:
         if any(word in lower_query for word in conversational_keywords) and len(lower_query.split()) < 6:
             return ""
 
-        try:
-            import urllib.parse
-            import re
-            
-            # Map full language names to Wikipedia subdomains
-            subdomains = {
-                "English": "en", "Spanish": "es", "French": "fr", "German": "de", 
-                "Hindi": "hi", "Chinese": "zh", "Japanese": "ja", "Russian": "ru"
-            }
-            domain = subdomains.get(target_lang, "en")
-            
-            # Clean query for better search
-            clean_query = re.sub(r'(explain|tell me about|what is|how to|simply|बारे में|बताना|बताओ)', '', lower_query).strip()
-            # If the query is too generic after cleaning, skip search to avoid "rubbish" results
-            if len(clean_query) < 4: return ""
-            if not clean_query: clean_query = query
-            
-            encoded_query = urllib.parse.quote(clean_query)
-            headers = {"User-Agent": "Nova-AI-Assistant/1.0"}
-            
-            async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
-                # Try search API on localized domain
-                search_url = f"https://{domain}.wikipedia.org/w/api.php?action=query&list=search&srsearch={encoded_query}&format=json"
-                async with session.get(search_url, timeout=5) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        search_results = data.get("query", {}).get("search", [])
-                        
-                        if search_results:
-                            best_title = search_results[0]["title"]
-                            encoded_title = urllib.parse.quote(best_title)
-                            
-                            # Get summary from localized API
-                            wiki_url = f"https://{domain}.wikipedia.org/api/rest_v1/page/summary/{encoded_title}"
-                            async with session.get(wiki_url, timeout=5) as summary_resp:
-                                if summary_resp.status == 200:
-                                    summary_data = await summary_resp.json()
-                                    extract = summary_data.get("extract", "")
-                                    if extract: return extract
-
-            return ""
-        except Exception as e:
-            logger.error(f"Search context error: {str(e)}")
-            return ""
+        # Removed Wikipedia text search to prevent stream blocking and reduce latency
+        return ""
 
     async def get_image_url(self, query: str) -> Optional[str]:
         try:
@@ -227,7 +185,7 @@ class ChatService:
             formatted_query = query.title().replace(' ', '_')
             wiki_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{formatted_query}"
             async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
-                async with session.get(wiki_url, timeout=5) as resp:
+                async with session.get(wiki_url, timeout=1.5) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         if data.get("originalimage"): return data["originalimage"]["source"]
@@ -661,48 +619,47 @@ async def chat_stream(request: ChatRequest, current_user: str = Depends(get_curr
     
     async def event_generator():
         logger.info(f"Starting chat stream for user {current_user}, session {session_id}")
+        
+        # INSTANT FEEDBACK: Yield empty chunk immediately to clear "AI is thinking..." UI
+        yield f"data: {json.dumps({'type': 'text', 'chunk': ''})}\n\n"
+        
         await chat_service.save_message(session_id, current_user, "user", request.user_input)
         import asyncio
         asyncio.create_task(chat_service.generate_title(session_id, request.user_input))
         history = await chat_service.get_history(session_id, limit=settings.MAX_CONTEXT_MESSAGES)
         
-        # Fast Path (Pro): Extended match for critical demo queries like resumes
-        # SKIP fast path/web search if user is asking about an UPLOADED image
+        lower_input = request.user_input.lower().strip()
         is_asking_about_upload = any(t in lower_input for t in ["this photo", "the photo", "my photo", "this image", "that picture"])
         has_upload = bool(request.image) or any(m.get("image") for m in history)
         
-        fast_context = None
-        if not (is_asking_about_upload and has_upload):
-            fast_context = await chat_service.get_search_context(request.user_input, request.language)
+        # FAST REPLY CACHE: Instant answers for repeated queries
+        if not has_upload and db.db and len(lower_input) > 4:
+            cached = await db.db.fast_cache.find_one({"query": lower_input, "language": request.language})
+            if cached:
+                logger.info("Fast Reply Cache hit!")
+                yield f"data: {json.dumps({'type': 'text', 'chunk': cached['response']})}\n\n"
+                await chat_service.save_message(session_id, current_user, "assistant", cached['response'])
+                title = "New Chat"
+                doc = await db.db.conversations.find_one({"id": session_id})
+                if doc: title = doc.get("title", "New Chat")
+                yield f"data: {json.dumps({'type': 'metadata', 'session_id': session_id, 'title': title})}\n\n"
+                return
 
-        # Higher char limit (200) for demo queries like "tips to improve my resume"
-        if fast_context and len(request.user_input.strip()) < 200:
-            yield f"data: {json.dumps({'type': 'text', 'chunk': ''})}\n\n"
-            yield f"data: {json.dumps({'type': 'text', 'chunk': fast_context})}\n\n"
-            await chat_service.save_message(session_id, current_user, "assistant", fast_context)
-            yield f"data: {json.dumps({'type': 'metadata', 'session_id': session_id, 'title': 'Resume Tips'})}\n\n"
-            return
-
-        image_url = None
-        lower_input = request.user_input.lower().strip()
-        # Clean query for image search (remove "who is", "about", etc.)
+        # Clean query for image search
         import re
         clean_name = re.sub(r'(who is|who was|tell me about|what is|about|show me|picture of|photo of|image of|a |an )', '', lower_input).strip().strip("?!.")
 
-        # Trigger conditions: explicit photo request OR "who is" query OR short name-like query
-        # BUT skip if there is already an uploaded image
         should_search_image = (any(t in lower_input for t in ["photo", "image", "picture", "show me"]) or \
                               any(t in lower_input for t in ["who is", "who was", "tell me about"]) or \
                               (len(lower_input.split()) <= 3 and len(clean_name) > 3)) and \
                               not has_upload
 
+        # NON-BLOCKING IMAGE SEARCH
+        image_task = None
         if should_search_image and clean_name:
-            image_url = await chat_service.get_image_url(clean_name)
-            if image_url:
-                yield f"data: {json.dumps({'type': 'image', 'url': image_url})}\n\n"
+            image_task = asyncio.create_task(chat_service.get_image_url(clean_name))
 
         full_content = ""
-        # Handle document context for streaming
         document_text = None
         if request.document:
             document_text = chat_service.extract_text_from_base64(request.document, request.document_name or "document")
@@ -711,6 +668,24 @@ async def chat_stream(request: ChatRequest, current_user: str = Depends(get_curr
             full_content += chunk
             yield f"data: {json.dumps({'type': 'text', 'chunk': chunk})}\n\n"
         
+        # Wait for image if requested, with a strict timeout
+        if image_task:
+            try:
+                image_url = await asyncio.wait_for(image_task, timeout=1.5)
+                if image_url:
+                    yield f"data: {json.dumps({'type': 'image', 'url': image_url})}\n\n"
+            except Exception:
+                pass
+
+        # Save to Fast Reply Cache
+        if not has_upload and db.db and len(lower_input) > 4:
+            from datetime import datetime
+            await db.db.fast_cache.update_one(
+                {"query": lower_input, "language": request.language},
+                {"$set": {"response": full_content, "timestamp": datetime.now()}},
+                upsert=True
+            )
+
         await chat_service.save_message(session_id, current_user, "assistant", full_content)
         title = "New Chat"
         if db.db:
