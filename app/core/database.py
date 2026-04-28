@@ -174,6 +174,7 @@ class MockDB:
         self.conversations = MockCollection("conversations", self)
         self.messages = MockCollection("messages", self)
         self.searches = MockCollection("searches", self)
+        self.fast_cache = MockCollection("fast_cache", self)
 
     def load_from_disk(self):
         if os.path.exists(self.storage_path):
@@ -204,6 +205,7 @@ class Database:
     conversations = None
     messages = None
     searches = None
+    fast_cache = None
 
     def _switch_to_mock(self, reason: str):
         """Helper to switch to persistent mock storage with clean logging."""
@@ -214,6 +216,7 @@ class Database:
         self.conversations = self.db.conversations
         self.messages = self.db.messages
         self.searches = self.db.searches
+        self.fast_cache = self.db.fast_cache
 
     async def connect_to_storage(self):
         """
@@ -246,6 +249,7 @@ class Database:
             self.conversations = self.db.conversations
             self.messages = self.db.messages
             self.searches = self.db.searches
+            self.fast_cache = self.db.fast_cache
             self.is_mock = False
             logger.info("Successfully connected to MongoDB.")
             
