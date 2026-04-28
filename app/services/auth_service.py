@@ -17,7 +17,7 @@ class AuthService:
         self.expire_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
         # Mock user database: {username: {"password": hashed_password}}
         self.users_db = {
-            "admin": {"password": self.get_password_hash("admin123")},
+            "admin": {"password": self.get_password_hash("admin")},
             "tester": {"password": self.get_password_hash("tester123")}
         }
 

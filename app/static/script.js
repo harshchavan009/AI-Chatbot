@@ -274,7 +274,14 @@ async function loadConversations() {
         });
         clearTimeout(timeoutId);
         
-        if (!response.ok) throw new Error('API Error');
+        if (!response.ok) {
+            if (response.status === 401) {
+                localStorage.removeItem('access_token');
+                window.location.href = '/login.html';
+                return;
+            }
+            throw new Error('API Error');
+        }
         
         const conversations = await response.json();
         renderHistoryList(conversations);

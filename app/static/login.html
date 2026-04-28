@@ -515,15 +515,34 @@
 
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             errorMsg.style.display = 'none';
+
+            if (!username || !password) {
+                const errorText = document.getElementById('error-text');
+                errorText.innerText = 'Username and password cannot be empty.';
+                errorMsg.style.display = 'flex';
+                errorMsg.classList.add('shake');
+                return;
+            }
 
             // Set loading state
             submitBtn.classList.add('loading');
             submitBtn.disabled = true;
 
             const url = isLogin ? '/api/login' : '/api/signup';
+            
+            // Server Wake-up Indication for Free Tier deployments (Render)
+            const wakeUpTimeout = setTimeout(() => {
+                const btnText = submitBtn.querySelector('.btn-text');
+                if (btnText) {
+                    submitBtn.classList.remove('loading');
+                    btnText.innerText = 'Waking Server... ⏳';
+                    btnText.style.display = 'inline-block';
+                    btnText.style.fontSize = '0.9rem';
+                }
+            }, 3000);
             
             try {
                 let response;
@@ -543,6 +562,8 @@
                     });
                 }
 
+                clearTimeout(wakeUpTimeout);
+
                 if (response.ok) {
                     if (isLogin) {
                         const data = await response.json();
@@ -550,8 +571,25 @@
                         localStorage.setItem('username', username);
                         window.location.href = '/';
                     } else {
-                        alert('Account created! Please sign in.');
-                        toggleLink.click();
+                        // AUTO-LOGIN AFTER SIGNUP
+                        const formData = new FormData();
+                        formData.append('username', username);
+                        formData.append('password', password);
+                        const loginResponse = await fetch(getApiUrl('/api/login'), {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (loginResponse.ok) {
+                            const data = await loginResponse.json();
+                            localStorage.setItem('access_token', data.access_token);
+                            localStorage.setItem('username', username);
+                            window.location.href = '/';
+                        } else {
+                            // Fallback if auto-login fails
+                            alert('Account created! Please sign in.');
+                            toggleLink.click();
+                        }
                     }
                 } else {
                     const error = await response.json();
@@ -565,6 +603,7 @@
                     errorMsg.classList.add('shake');
                 }
             } catch (err) {
+                clearTimeout(wakeUpTimeout);
                 const errorText = document.getElementById('error-text');
                 errorText.innerText = 'Server error. Please try again later.';
                 errorMsg.style.display = 'flex';
@@ -573,6 +612,12 @@
                 // Restore state
                 submitBtn.classList.remove('loading');
                 submitBtn.disabled = false;
+                const btnText = submitBtn.querySelector('.btn-text');
+                if (btnText) {
+                    btnText.innerText = isLogin ? 'Sign In' : 'Sign Up';
+                    btnText.style.display = '';
+                    btnText.style.fontSize = '';
+                }
             }
         });
     </script>
