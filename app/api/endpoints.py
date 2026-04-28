@@ -458,12 +458,13 @@ class ChatService:
             if selected_model: gemini_models.insert(0, selected_model)
 
             for model_name in gemini_models:
+                success = False
                 try:
                     logger.info(f"Stream attempt: {model_name}")
                     async for chunk in self.gemini_client.aio.models.generate_content_stream(
                         model=model_name,
                         contents=contents,
-                        config={'system_instruction': system_instr, 'temperature': temperature or 0.7}
+                        config={'system_instruction': system_instr, 'temperature': temperature or 0.7, 'http_options': {'timeout': 15}}
                     ):
                         if chunk.text: 
                             yield chunk.text
