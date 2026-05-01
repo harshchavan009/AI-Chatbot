@@ -158,7 +158,7 @@ class ChatService:
         target_lang = "English" if language == "Auto-detect" else language
         lang_group = smart_responses.get(target_lang, smart_responses["English"])
         
-        lower_query = query.lower().strip().strip("?!.")
+        lower_query = user_input.lower().strip().strip("?!.")
         # Exact match for speed
         if lower_query in lang_group:
             return lang_group[lower_query]
@@ -461,11 +461,12 @@ class ChatService:
                 success = False
                 try:
                     logger.info(f"Stream attempt: {model_name}")
-                    async for chunk in self.gemini_client.aio.models.generate_content_stream(
+                    response_stream = await self.gemini_client.aio.models.generate_content_stream(
                         model=model_name,
                         contents=contents,
                         config={'system_instruction': system_instr, 'temperature': temperature or 0.7, 'http_options': {'timeout': 15}}
-                    ):
+                    )
+                    async for chunk in response_stream:
                         if chunk.text: 
                             yield chunk.text
                             success = True

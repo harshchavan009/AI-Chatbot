@@ -6,7 +6,12 @@ const selectedLangText = document.getElementById('selected-lang-text');
 // Token is retrieved fresh from localStorage in each API call to avoid stale session issues
 
 // API Helper
-const API_BASE_URL = 'https://nova-ai-chatbot-8b04.onrender.com';
+let API_BASE_URL = 'https://nova-ai-chatbot-8b04.onrender.com';
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    API_BASE_URL = ''; // Use relative paths for local development
+} else if (window.location.hostname.includes('onrender.com')) {
+    API_BASE_URL = ''; // Use relative paths if hosted directly on Render
+}
 
 function getApiUrl(path) {
     // Ensure we don't double slash
