@@ -480,7 +480,7 @@ class ChatService:
                     response_stream = await self.gemini_client.aio.models.generate_content_stream(
                         model=model_name,
                         contents=contents,
-                        config={'system_instruction': system_instr, 'temperature': temperature or 0.7, 'http_options': {'timeout': 15}}
+                        config={'system_instruction': system_instr, 'temperature': temperature or 0.7}
                     )
                     async for chunk in response_stream:
                         if chunk.text: 
