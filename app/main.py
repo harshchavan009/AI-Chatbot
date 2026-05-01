@@ -3,6 +3,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
+import asyncio
+import httpx
+import time
 from app.api.endpoints import router as api_router
 from app.core.config import settings
 from app.core.logging import logger
@@ -28,6 +31,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    # Avoid spamming logs with static file requests
+    if not request.url.path.startswith("/assets") and not request.url.path.endswith(".png"):
+        logger.info(f"{request.method} {request.url.path} - Status: {response.status_code} - {process_time:.4f}s")
+    return response
+
 @app.get("/health")
 async def root_health():
     """Root health check for deployment platforms like Render."""
@@ -39,6 +52,19 @@ app.include_router(api_router, prefix="/api")
 # Serve static files
 app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
 
+async def keep_alive():
+    """Background task to ping the service and prevent it from sleeping on free tiers."""
+    while True:
+        try:
+            await asyncio.sleep(840) # 14 minutes (Render sleeps after 15m)
+            # Try to get the external URL from environment, fallback to localhost
+            app_url = os.getenv("RENDER_EXTERNAL_URL", f"http://localhost:{settings.PORT}")
+            logger.info(f"Keep-alive pinging {app_url}/health...")
+            async with httpx.AsyncClient() as client:
+                await client.get(f"{app_url}/health", timeout=10.0)
+        except Exception as e:
+            logger.error(f"Keep-alive ping failed: {e}")
+
 @app.on_event("startup")
 async def startup_event():
     """
@@ -46,6 +72,7 @@ async def startup_event():
     """
     logger.info("Starting up AI Chatbot...")
     await db.connect_to_storage()
+    asyncio.create_task(keep_alive())
 
 @app.on_event("shutdown")
 async def shutdown_event():

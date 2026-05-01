@@ -69,20 +69,31 @@ class AdminStats(BaseModel):
 
 class ChatService:
     def __init__(self):
-        # OpenAI Setup
+        # API Keys
         self.openai_key = settings.OPENAI_API_KEY
-        self.openai_client = AsyncOpenAI(api_key=self.openai_key) if self.openai_key and "..." not in self.openai_key and "your_" not in self.openai_key else None
-        
-        # Gemini Setup (Upgraded to google-genai)
         self.gemini_key = settings.GEMINI_API_KEY
-        self.gemini_enabled = False
+        
+        # Lazy loaded clients
+        self.openai_client = None
         self.gemini_client = None
+        self.gemini_enabled = bool(self.gemini_key)
+        self._initialized = False
+
+    def _ensure_initialized(self):
+        """Lazy load AI SDKs to speed up app startup time."""
+        if self._initialized: return
+        
+        if self.openai_key and "..." not in self.openai_key and "your_" not in self.openai_key:
+            self.openai_client = AsyncOpenAI(api_key=self.openai_key)
+            
         if self.gemini_key:
             try:
                 self.gemini_client = genai.Client(api_key=self.gemini_key)
-                self.gemini_enabled = True
             except Exception as e:
                 logger.error(f"Gemini configuration error: {str(e)}")
+                self.gemini_enabled = False
+                
+        self._initialized = True
 
     def extract_text_from_base64(self, base64_str: str, filename: str) -> str:
         """Extract text from base64 encoded PDF or TXT file."""
@@ -265,6 +276,7 @@ class ChatService:
 
     async def generate_title(self, session_id: str, user_input: str):
         """Generate a meaningful title for the conversation based on the content."""
+        self._ensure_initialized()
         try:
             if not db.db: return
             doc = await db.db.conversations.find_one({"id": session_id})
@@ -395,6 +407,7 @@ class ChatService:
                                 continue
     async def _get_ai_text(self, history: List[Dict[str, str]], user_input: str, language: str, image_data: Optional[str] = None, document_text: Optional[str] = None):
         """Unified text generation logic using upgraded Gemini SDK."""
+        self._ensure_initialized()
         if self.gemini_enabled:
             lang_rule = "Detect user language and respond in the same language." if language == "Auto-detect" else f"Respond ONLY in {language}."
             system_instr = f"You are Nova AI. {lang_rule} Provide detailed, professional responses in markdown."
@@ -431,6 +444,7 @@ class ChatService:
 
     async def _get_ai_text_stream(self, history: List[Dict[str, str]], user_input: str, language: str, image_data: Optional[str] = None, document_text: Optional[str] = None, selected_model: Optional[str] = None, temperature: Optional[float] = 0.7):
         """Streaming AI response using the new google-genai SDK."""
+        self._ensure_initialized()
         if self.gemini_enabled and self.gemini_client:
             lang_rule = f"Respond ONLY in {language}." if language != "Auto-detect" else "Respond in user's language."
             system_instr = f"You are Nova AI. {lang_rule} Provide detailed markdown."
