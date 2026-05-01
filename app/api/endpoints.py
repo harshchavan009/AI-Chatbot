@@ -38,7 +38,7 @@ class ChatRequest(BaseModel):
     image: Optional[str] = None
     document: Optional[str] = None
     document_name: Optional[str] = None
-    model: Optional[str] = "gemini-2.0-flash"
+    model: Optional[str] = "gemini-2.5-flash"
     temperature: Optional[float] = 0.7
 
 class ChatResponse(BaseModel):
@@ -414,7 +414,7 @@ class ChatService:
             
             contents.append({'role': 'user', 'parts': parts})
 
-            gemini_models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro-latest']
+            gemini_models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro-latest']
             for model_name in gemini_models:
                 try:
                     response = self.gemini_client.models.generate_content(
@@ -450,7 +450,9 @@ class ChatService:
 
             # Comprehensive model list with exact identifiers for the new SDK
             gemini_models = [
+                'gemini-2.5-flash',
                 'gemini-2.0-flash', 
+                'gemini-2.5-pro',
                 'gemini-1.5-flash',
                 'gemini-1.5-flash-8b',
                 'gemini-1.5-pro'

@@ -1,36 +1,24 @@
-import google.generativeai as genai
+import asyncio
+from google import genai
 import os
 from dotenv import load_dotenv
-import time
 
 load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
 
-if not api_key:
-    print("No GEMINI_API_KEY found in .env")
-    exit(1)
+async def main():
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-pro-latest', 'gemini-2.5-flash', 'gemini-2.0-flash-lite']
+    contents = [{'role': 'user', 'parts': [{'text': 'Hello'}]}]
+    
+    for model_name in models:
+        print(f"Testing {model_name}...")
+        try:
+            response = await client.aio.models.generate_content(
+                model=model_name,
+                contents=contents
+            )
+            print(f"Success! {model_name} works. Response: {response.text}")
+        except Exception as e:
+            print(f"Failed {model_name}: {str(e)}")
 
-genai.configure(api_key=api_key)
-
-print("Testing available models for quota...")
-working_models = []
-try:
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            model_name = m.name.replace('models/', '')
-            print(f"Testing {model_name}...", end=" ", flush=True)
-            try:
-                model = genai.GenerativeModel(model_name)
-                response = model.generate_content("Hi", generation_config={"max_output_tokens": 10})
-                print("SUCCESS")
-                working_models.append(model_name)
-            except Exception as e:
-                print(f"FAILED ({str(e)[:50]}...)")
-            # Sleep a bit to avoid triggering rate limits just by testing
-            time.sleep(1)
-except Exception as e:
-    print(f"Error listing models: {str(e)}")
-
-print("\nSummary of working models:")
-for wm in working_models:
-    print(f"- {wm}")
+asyncio.run(main())

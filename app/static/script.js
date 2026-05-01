@@ -64,7 +64,7 @@ const tempValueDisplay = document.getElementById('temp-value');
 const languageSelect = document.getElementById('language-select');
 
 let aiSettings = {
-    model: localStorage.getItem('ai_model') || 'gemini-2.0-flash',
+    model: localStorage.getItem('ai_model') || 'gemini-2.5-flash',
     temperature: parseFloat(localStorage.getItem('ai_temp')) || 0.7,
     language: localStorage.getItem('ai_language') || 'Auto-detect'
 };
